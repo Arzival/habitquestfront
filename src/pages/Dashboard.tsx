@@ -1,14 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import Lenis from '@studio-freight/lenis';
-import { Calendar, Trophy, Target, TrendingUp, CheckCircle, XCircle, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { 
+  Calendar, 
+  Trophy, 
+  Target, 
+  TrendingUp, 
+  CheckCircle, 
+  Home,
+  Plus,
+  Settings,
+  Users,
+  BarChart3,
+  Award,
+  MessageCircle,
+  Share2
+} from 'lucide-react';
 import '../styles/Dashboard.css';
 
 // Tipos para los datos de hábitos
 interface HabitData {
   date: string;
-  completedHabits: number; // Número de hábitos completados ese día
-  totalHabits: number; // Total de hábitos disponibles
+  completedHabits: number;
+  totalHabits: number;
 }
 
 interface HabitStats {
@@ -40,29 +53,23 @@ const Dashboard: React.FC = () => {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       
-      // Generar datos más realistas para GitHub-style
       const randomValue = Math.random();
       let completedHabits = 0;
       
       if (randomValue > 0.7) {
-        // 30% de probabilidad de completar 1-2 hábitos
         completedHabits = Math.floor(Math.random() * 2) + 1;
       } else if (randomValue > 0.4) {
-        // 30% de probabilidad de completar 3-4 hábitos
         completedHabits = Math.floor(Math.random() * 2) + 3;
       } else if (randomValue > 0.15) {
-        // 25% de probabilidad de completar 5-8 hábitos
         completedHabits = Math.floor(Math.random() * 4) + 5;
       } else if (randomValue > 0.05) {
-        // 10% de probabilidad de completar 9+ hábitos
         completedHabits = Math.floor(Math.random() * 5) + 9;
       }
-      // 15% de probabilidad de no completar nada (completedHabits = 0)
       
       data.push({
         date: date.toISOString().split('T')[0],
         completedHabits,
-        totalHabits: 10 // Aumentado para permitir más hábitos
+        totalHabits: 10
       });
     }
     
@@ -71,73 +78,23 @@ const Dashboard: React.FC = () => {
 
   const [habitData] = useState<HabitData[]>(generateHabitData());
 
-  // Scroll nativo instantáneo (Lenis deshabilitado)
-  // useEffect(() => {
-  //   const lenis = new Lenis({
-  //     duration: 1.2,
-  //     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-  //   });
-
-  //   function raf(time: number) {
-  //     lenis.raf(time);
-  //     requestAnimationFrame(raf);
-  //   }
-
-  //   requestAnimationFrame(raf);
-
-  //   return () => {
-  //     lenis.destroy();
-  //   };
-  // }, []);
-
   // Animaciones con GSAP
   useEffect(() => {
     if (containerRef.current) {
       const ctx = gsap.context(() => {
-        // Animación de entrada para las tarjetas de estadísticas
+        gsap.fromTo('.sidebar', 
+          { opacity: 0, x: -50 },
+          { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out' }
+        );
+
+        gsap.fromTo('.main-content', 
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: 'power3.out' }
+        );
+
         gsap.fromTo('.stats-card', 
-          { 
-            opacity: 0, 
-            y: 50,
-            scale: 0.9
-          },
-          { 
-            opacity: 1, 
-            y: 0,
-            scale: 1,
-            duration: 0.8,
-            stagger: 0.1,
-            ease: 'power3.out'
-          }
-        );
-
-        // Animación para el título
-        gsap.fromTo('.dashboard-title', 
-          { 
-            opacity: 0, 
-            x: -50 
-          },
-          { 
-            opacity: 1, 
-            x: 0,
-            duration: 1,
-            ease: 'power3.out'
-          }
-        );
-
-        // Animación para el grid de contribuciones
-        gsap.fromTo('.contribution-grid', 
-          { 
-            opacity: 0,
-            scale: 0.95
-          },
-          { 
-            opacity: 1,
-            scale: 1,
-            duration: 1.2,
-            delay: 0.3,
-            ease: 'power3.out'
-          }
+          { opacity: 0, y: 30, scale: 0.9 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, delay: 0.4, ease: 'power3.out' }
         );
       }, containerRef);
 
@@ -145,14 +102,14 @@ const Dashboard: React.FC = () => {
     }
   }, []);
 
-  // Función para obtener el color basado en la cantidad de hábitos completados (estilo GitHub)
+  // Función para obtener el color basado en la cantidad de hábitos completados
   const getContributionColor = (completedHabits: number, totalHabits: number): string => {
-    if (completedHabits === 0) return '#161b22'; // Sin actividad (gris oscuro como GitHub)
+    if (completedHabits === 0) return '#161b22';
     
-    if (completedHabits >= 4) return '#39d353'; // 4+ hábitos (verde intenso)
-    if (completedHabits === 3) return '#26a641'; // 3 hábitos (verde medio)
-    if (completedHabits === 2) return '#0e7a3a'; // 2 hábitos (verde claro)
-    return '#216e39'; // 1 hábito (verde muy claro)
+    if (completedHabits >= 4) return '#39d353';
+    if (completedHabits === 3) return '#26a641';
+    if (completedHabits === 2) return '#0e7a3a';
+    return '#216e39';
   };
 
   // Función para obtener el tooltip
@@ -164,32 +121,116 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="dashboard-container">
-      {/* Header con título y navegación */}
-      <header className="dashboard-header glass">
-        <div className="container">
-          <div className="header-content">
-            <div className="header-left">
-              <h1 className="dashboard-title">
-                <Trophy className="title-icon" />
-                HabitQuest
-              </h1>
-              <p className="dashboard-subtitle">
-                Tu progreso en el viaje de los hábitos
-              </p>
+    <div ref={containerRef} className="dashboard-layout">
+      {/* Sidebar de navegación */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">
+            <Trophy className="logo-icon" />
+            <span className="logo-text">HabitQuest</span>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          <ul className="nav-list">
+            <li className="nav-item active">
+              <a href="#" className="nav-link">
+                <Home className="nav-icon" />
+                <span>Dashboard</span>
+              </a>
+            </li>
+            <li className="nav-item">
+              <a href="#" className="nav-link">
+                <BarChart3 className="nav-icon" />
+                <span>Progreso</span>
+              </a>
+            </li>
+            <li className="nav-item">
+              <a href="#" className="nav-link">
+                <Award className="nav-icon" />
+                <span>Logros</span>
+              </a>
+            </li>
+            <li className="nav-item">
+              <a href="#" className="nav-link">
+                <Users className="nav-icon" />
+                <span>Comunidad</span>
+              </a>
+            </li>
+            <li className="nav-item">
+              <a href="#" className="nav-link">
+                <MessageCircle className="nav-icon" />
+                <span>Soporte</span>
+              </a>
+            </li>
+            <li className="nav-item">
+              <a href="#" className="nav-link">
+                <Share2 className="nav-icon" />
+                <span>Compartir</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="social-links">
+            <a href="#" className="social-link">TG</a>
+            <a href="#" className="social-link">DC</a>
+            <a href="#" className="social-link">TT</a>
+            <a href="#" className="social-link">X</a>
+          </div>
+        </div>
+      </aside>
+
+      {/* Contenido principal */}
+      <main className="main-content">
+        {/* Header superior */}
+        <header className="top-header">
+          <div className="header-left">
+            <div className="search-bar">
+              <input type="text" placeholder="Buscar hábitos..." />
             </div>
-            <div className="header-right">
-              <div className="status-indicator">
-                <div className="status-dot"></div>
-                <span>Sistema Activo</span>
+          </div>
+          
+          <div className="header-center">
+            <div className="stats-summary">
+              <span>Últimos 7 días:</span>
+              <div className="summary-numbers">
+                <span className="summary-number">6</span>
+                <span className="summary-number">8</span>
+                <span className="summary-number">4</span>
+                <span className="summary-number">9</span>
+                <span className="summary-number">7</span>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+          
+          <div className="header-right">
+            <div className="user-balance">
+              <span className="balance-amount">215.00</span>
+              <span className="balance-label">Puntos</span>
+            </div>
+            <div className="user-avatar">
+              <div className="avatar-placeholder">U</div>
+            </div>
+            <div className="notification-icons">
+              <div className="notification-dot"></div>
+              <div className="notification-dot"></div>
+              <div className="notification-dot"></div>
+            </div>
+          </div>
+        </header>
 
-      <main className="dashboard-main">
-        <div className="container">
+        {/* Botón Agregar */}
+        <div className="add-button-container">
+          <button className="add-button">
+            <Plus className="add-icon" />
+            <span>Agregar</span>
+          </button>
+        </div>
+
+        {/* Contenido del dashboard */}
+        <div className="dashboard-content">
           {/* Tarjetas de estadísticas */}
           <section className="stats-section">
             <div className="stats-grid">
@@ -235,7 +276,7 @@ const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* Grid de contribuciones estilo GitHub */}
+          {/* Grid de contribuciones */}
           <section className="contributions-section">
             <div className="contributions-header">
               <h2 className="section-title">
@@ -267,7 +308,6 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="contribution-container">
-              {/* Etiquetas de días de la semana */}
               <div className="days-labels">
                 <span></span>
                 <span>Mon</span>
@@ -279,7 +319,6 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="contribution-content">
-                {/* Etiquetas de meses */}
                 <div className="months-labels">
                   {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, index) => (
                     <span key={month} style={{ gridColumn: `${index * 4 + 1} / span 4` }}>
@@ -288,7 +327,6 @@ const Dashboard: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Grid de contribuciones */}
                 <div className="contribution-grid">
                   {habitData.map((data, index) => (
                     <div
