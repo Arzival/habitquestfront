@@ -13,7 +13,9 @@ import {
   BarChart3,
   Award,
   MessageCircle,
-  Share2
+  Share2,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import '../styles/Dashboard.css';
 
@@ -32,8 +34,21 @@ interface HabitStats {
   monthlyProgress: number;
 }
 
+interface MonthCard {
+  id: string;
+  month: string;
+  year: number;
+  createdAt: Date;
+}
+
+interface DeleteModal {
+  isOpen: boolean;
+  cardToDelete: MonthCard | null;
+}
+
 const Dashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   
   // Datos mock para la aplicación
   const [habitStats, setHabitStats] = useState<HabitStats>({
@@ -42,6 +57,15 @@ const Dashboard: React.FC = () => {
     currentStreak: 7,
     longestStreak: 21,
     monthlyProgress: 75
+  });
+
+  // Estado para las cards de meses
+  const [monthCards, setMonthCards] = useState<MonthCard[]>([]);
+
+  // Estado para el modal de confirmación
+  const [deleteModal, setDeleteModal] = useState<DeleteModal>({
+    isOpen: false,
+    cardToDelete: null
   });
 
   // Generar datos de ejemplo para el último año (estilo GitHub)
@@ -78,6 +102,79 @@ const Dashboard: React.FC = () => {
 
   const [habitData] = useState<HabitData[]>(generateHabitData());
 
+  // Función para agregar nueva card de mes
+  const handleAddMonthCard = () => {
+    const now = new Date();
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    
+    const newCard: MonthCard = {
+      id: `month-${Date.now()}`,
+      month: monthNames[now.getMonth()],
+      year: now.getFullYear(),
+      createdAt: now
+    };
+
+    setMonthCards(prev => [...prev, newCard]);
+
+    // Animación para la nueva card
+    setTimeout(() => {
+      const newCardElement = document.getElementById(newCard.id);
+      if (newCardElement) {
+        gsap.fromTo(newCardElement,
+          { opacity: 0, y: 50, scale: 0.8 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'back.out(1.7)' }
+        );
+      }
+    }, 100);
+  };
+
+  // Función para abrir modal de confirmación
+  const handleOpenDeleteModal = (card: MonthCard) => {
+    setDeleteModal({
+      isOpen: true,
+      cardToDelete: card
+    });
+  };
+
+  // Función para cerrar modal
+  const handleCloseModal = () => {
+    setDeleteModal({
+      isOpen: false,
+      cardToDelete: null
+    });
+  };
+
+  // Función para confirmar eliminación
+  const handleConfirmDelete = () => {
+    if (deleteModal.cardToDelete) {
+      const cardElement = document.getElementById(deleteModal.cardToDelete.id);
+      if (cardElement) {
+        gsap.to(cardElement, {
+          opacity: 0,
+          y: -50,
+          scale: 0.8,
+          duration: 0.4,
+          ease: 'back.in(1.7)',
+          onComplete: () => {
+            setMonthCards(prev => prev.filter(card => card.id !== deleteModal.cardToDelete!.id));
+            handleCloseModal();
+          }
+        });
+      }
+    }
+  };
+
+  // Función para eliminar card de mes (deprecada, ahora usa modal)
+  const handleRemoveMonthCard = (id: string) => {
+    const card = monthCards.find(c => c.id === id);
+    if (card) {
+      handleOpenDeleteModal(card);
+    }
+  };
+
   // Animaciones con GSAP
   useEffect(() => {
     if (containerRef.current) {
@@ -101,6 +198,16 @@ const Dashboard: React.FC = () => {
       return () => ctx.revert();
     }
   }, []);
+
+  // Animación del modal
+  useEffect(() => {
+    if (deleteModal.isOpen && modalRef.current) {
+      gsap.fromTo(modalRef.current,
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.7)' }
+      );
+    }
+  }, [deleteModal.isOpen]);
 
   // Función para obtener el color basado en la cantidad de hábitos completados
   const getContributionColor = (completedHabits: number, totalHabits: number): string => {
@@ -223,7 +330,7 @@ const Dashboard: React.FC = () => {
 
         {/* Botón Agregar */}
         <div className="add-button-container">
-          <button className="add-button">
+          <button className="add-button" onClick={handleAddMonthCard}>
             <Plus className="add-icon" />
             <span>Agregar</span>
           </button>
@@ -349,8 +456,97 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
           </section>
+
+          {/* Sección de cards de meses */}
+          {monthCards.length > 0 && (
+            <section className="month-cards-section">
+              <h2 className="section-title">
+                <Calendar className="section-icon" />
+                Meses Agregados
+              </h2>
+              <div className="month-cards-grid">
+                {monthCards.map((card) => (
+                  <div
+                    key={card.id}
+                    id={card.id}
+                    className="month-card glass-card"
+                  >
+                    <div className="month-card-header">
+                      <div className="month-card-title">
+                        <Calendar className="month-card-icon" />
+                        <div className="month-card-text">
+                          <h3 className="month-name">{card.month}</h3>
+                          <p className="month-year">{card.year}</p>
+                        </div>
+                      </div>
+                      <button
+                        className="remove-month-btn"
+                        onClick={() => handleRemoveMonthCard(card.id)}
+                        title="Eliminar mes"
+                      >
+                        <X className="remove-icon" />
+                      </button>
+                    </div>
+                    <div className="month-card-content">
+                      <p className="month-card-description">
+                        Card agregada el {card.createdAt.toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </main>
+
+      {/* Modal de confirmación de eliminación */}
+      {deleteModal.isOpen && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div 
+            ref={modalRef} 
+            className="delete-modal glass-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-icon">
+                <AlertTriangle className="warning-icon" />
+              </div>
+              <h3 className="modal-title">Confirmar Eliminación</h3>
+            </div>
+            
+            <div className="modal-content">
+              <p className="modal-message">
+                ¿Estás seguro de que quieres eliminar la card de <strong>{deleteModal.cardToDelete?.month} {deleteModal.cardToDelete?.year}</strong>?
+              </p>
+              <p className="modal-warning">
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="modal-btn modal-btn-cancel" 
+                onClick={handleCloseModal}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="modal-btn modal-btn-confirm" 
+                onClick={handleConfirmDelete}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
