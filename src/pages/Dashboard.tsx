@@ -71,24 +71,24 @@ const Dashboard: React.FC = () => {
 
   const [habitData] = useState<HabitData[]>(generateHabitData());
 
-  // Inicializar Lenis para scroll suave
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    });
+  // Scroll nativo instantáneo (Lenis deshabilitado)
+  // useEffect(() => {
+  //   const lenis = new Lenis({
+  //     duration: 1.2,
+  //     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+  //   });
 
-    function raf(time: number) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
+  //   function raf(time: number) {
+  //     lenis.raf(time);
+  //     requestAnimationFrame(raf);
+  //   }
 
-    requestAnimationFrame(raf);
+  //   requestAnimationFrame(raf);
 
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
+  //   return () => {
+  //     lenis.destroy();
+  //   };
+  // }, []);
 
   // Animaciones con GSAP
   useEffect(() => {
@@ -172,11 +172,17 @@ const Dashboard: React.FC = () => {
             <div className="header-left">
               <h1 className="dashboard-title">
                 <Trophy className="title-icon" />
-                HabitQuest Dashboard
+                HabitQuest
               </h1>
               <p className="dashboard-subtitle">
                 Tu progreso en el viaje de los hábitos
               </p>
+            </div>
+            <div className="header-right">
+              <div className="status-indicator">
+                <div className="status-dot"></div>
+                <span>Sistema Activo</span>
+              </div>
             </div>
           </div>
         </div>
