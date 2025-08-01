@@ -729,6 +729,21 @@
   border-color: var(--darkblue-accent);
 }
 
+/* Estilo para cards clickeables */
+.month-card.clickable {
+  cursor: pointer;
+}
+
+.month-card.clickable:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--neon-glow-strong), var(--glass-shadow);
+  border-color: var(--darkblue-accent);
+}
+
+.month-card.clickable:active {
+  transform: translateY(-4px) scale(1.01);
+}
+
 .month-card-header {
   display: flex;
   justify-content: space-between;

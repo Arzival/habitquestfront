@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
+import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   Trophy, 
@@ -49,6 +50,7 @@ interface DeleteModal {
 const Dashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   // Datos mock para la aplicación
   const [habitStats, setHabitStats] = useState<HabitStats>({
@@ -129,6 +131,17 @@ const Dashboard: React.FC = () => {
         );
       }
     }, 100);
+  };
+
+  // Función para navegar a la página de habits
+  const handleCardClick = (card: MonthCard) => {
+    // Guardar la información de la card en localStorage para la página de habits
+    localStorage.setItem('selectedMonth', JSON.stringify({
+      month: card.month,
+      year: card.year,
+      id: card.id
+    }));
+    navigate('/habits');
   };
 
   // Función para abrir modal de confirmación
@@ -469,7 +482,8 @@ const Dashboard: React.FC = () => {
                   <div
                     key={card.id}
                     id={card.id}
-                    className="month-card glass-card"
+                    className="month-card glass-card clickable"
+                    onClick={() => handleCardClick(card)}
                   >
                     <div className="month-card-header">
                       <div className="month-card-title">
@@ -481,7 +495,10 @@ const Dashboard: React.FC = () => {
                       </div>
                       <button
                         className="remove-month-btn"
-                        onClick={() => handleRemoveMonthCard(card.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveMonthCard(card.id);
+                        }}
                         title="Eliminar mes"
                       >
                         <X className="remove-icon" />
