@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   ArrowLeft,
-  Edit3
+  Edit3,
+  Trophy,
+  Plus
 } from 'lucide-react';
 import '../styles/Habits.css';
 
@@ -12,6 +14,11 @@ interface MonthData {
   month: string;
   year: number;
   id: string;
+}
+
+interface DailyAchievement {
+  day: number;
+  achievement: string;
 }
 
 
@@ -26,6 +33,14 @@ const Habits: React.FC = () => {
   // Estado para la frase del mes
   const [monthPhrase, setMonthPhrase] = useState<string>('');
   const [isEditingPhrase, setIsEditingPhrase] = useState<boolean>(false);
+
+  // Estado para los logros diarios
+  const [dailyAchievements, setDailyAchievements] = useState<DailyAchievement[]>([]);
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [tempAchievement, setTempAchievement] = useState<string>('');
+  
+  // Ref para el scroll automático
+  const achievementsGridRef = useRef<HTMLDivElement>(null);
 
 
 
@@ -76,6 +91,116 @@ const Habits: React.FC = () => {
     }
   }, [monthData]);
 
+  // Cargar logros diarios guardados
+  useEffect(() => {
+    if (monthData) {
+      const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
+      if (savedAchievements) {
+        setDailyAchievements(JSON.parse(savedAchievements));
+      }
+    }
+  }, [monthData]);
+
+  // Scroll automático al día actual cuando se carga el componente
+  useEffect(() => {
+    if (monthData && achievementsGridRef.current) {
+      // Pequeño delay para asegurar que el DOM esté renderizado
+      const timer = setTimeout(() => {
+        scrollToCurrentDay();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [monthData]);
+
+  // Función para obtener los días del mes
+  const getDaysInMonth = (month: string, year: number): number => {
+    const monthIndex = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ].indexOf(month);
+    return new Date(year, monthIndex + 1, 0).getDate();
+  };
+
+  // Función para obtener el día actual
+  const getCurrentDay = (): number => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    if (!monthData) return -1;
+    
+    const monthIndex = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ].indexOf(monthData.month);
+    
+    // Solo retornar el día actual si estamos en el mes y año correcto
+    if (monthIndex === currentMonth && monthData.year === currentYear) {
+      return today.getDate();
+    }
+    
+    return -1; // No es el mes actual
+  };
+
+  // Función para hacer scroll al día actual
+  const scrollToCurrentDay = () => {
+    const currentDay = getCurrentDay();
+    if (currentDay === -1 || !achievementsGridRef.current) return;
+
+    // Calcular la posición del elemento del día actual
+    const dayElement = achievementsGridRef.current.querySelector(`[data-day="${currentDay}"]`) as HTMLElement;
+    if (dayElement) {
+      dayElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  };
+
+  // Función para obtener el logro de un día específico
+  const getAchievementForDay = (day: number): string => {
+    const achievement = dailyAchievements.find(a => a.day === day);
+    return achievement ? achievement.achievement : '';
+  };
+
+  // Función para iniciar la edición de un día
+  const handleEditDay = (day: number) => {
+    setEditingDay(day);
+    setTempAchievement(getAchievementForDay(day));
+  };
+
+  // Función para guardar el logro de un día
+  const handleSaveAchievement = () => {
+    if (editingDay === null) return;
+
+    const updatedAchievements = dailyAchievements.filter(a => a.day !== editingDay);
+    
+    if (tempAchievement.trim()) {
+      updatedAchievements.push({
+        day: editingDay,
+        achievement: tempAchievement.trim()
+      });
+    }
+
+    updatedAchievements.sort((a, b) => a.day - b.day);
+    setDailyAchievements(updatedAchievements);
+    
+    // Guardar en localStorage
+    if (monthData) {
+      localStorage.setItem(`achievements_${monthData.id}`, JSON.stringify(updatedAchievements));
+    }
+
+    setEditingDay(null);
+    setTempAchievement('');
+  };
+
+  // Función para cancelar la edición
+  const handleCancelEdit = () => {
+    setEditingDay(null);
+    setTempAchievement('');
+  };
+
 
 
   // Animaciones con GSAP
@@ -90,6 +215,11 @@ const Habits: React.FC = () => {
         gsap.fromTo('.phrase-section', 
           { opacity: 0, y: 30 },
           { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: 'power3.out' }
+        );
+
+        gsap.fromTo('.achievements-section', 
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.4, ease: 'power3.out' }
         );
       }, containerRef);
 
@@ -174,6 +304,88 @@ const Habits: React.FC = () => {
             </div>
           </section>
 
+          {/* Sección de logros diarios */}
+          <section className="achievements-section">
+            <div className="achievements-container glass-card">
+              <div className="achievements-header">
+                <h2 className="achievements-title">
+                  <Trophy className="achievements-icon" />
+                  Logros Diarios de {monthData.month}
+                </h2>
+                <p className="achievements-subtitle">
+                  Registra un logro importante por cada día del mes
+                </p>
+              </div>
+              
+              <div className="achievements-grid" ref={achievementsGridRef}>
+                {Array.from({ length: getDaysInMonth(monthData.month, monthData.year) }, (_, index) => {
+                  const day = index + 1;
+                  const achievement = getAchievementForDay(day);
+                  const isEditing = editingDay === day;
+                  const currentDay = getCurrentDay();
+                  const isCurrentDay = day === currentDay;
+                  
+                  return (
+                    <div 
+                      key={day} 
+                      className={`achievement-item ${achievement ? 'has-achievement' : ''} ${isCurrentDay ? 'current-day' : ''}`}
+                      data-day={day}
+                    >
+                      <div className="achievement-day">
+                        <span className="day-number">{day}</span>
+                      </div>
+                      
+                      <div className="achievement-content">
+                        {isEditing ? (
+                          <div className="achievement-edit">
+                            <input
+                              type="text"
+                              value={tempAchievement}
+                              onChange={(e) => setTempAchievement(e.target.value)}
+                              placeholder={`Logro del día ${day}...`}
+                              className="achievement-input"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveAchievement();
+                                if (e.key === 'Escape') handleCancelEdit();
+                              }}
+                            />
+                            <div className="achievement-actions">
+                              <button 
+                                className="achievement-btn save-btn" 
+                                onClick={handleSaveAchievement}
+                                title="Guardar"
+                              >
+                                ✓
+                              </button>
+                              <button 
+                                className="achievement-btn cancel-btn" 
+                                onClick={handleCancelEdit}
+                                title="Cancelar"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="achievement-display" onClick={() => handleEditDay(day)}>
+                            {achievement ? (
+                              <p className="achievement-text">{achievement}</p>
+                            ) : (
+                              <div className="achievement-placeholder">
+                                <Plus className="plus-icon" />
+                                <span>Agregar logro</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
 
         </div>
       </main>
