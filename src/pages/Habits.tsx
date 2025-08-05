@@ -6,7 +6,10 @@ import {
   ArrowLeft,
   Edit3,
   Trophy,
-  Plus
+  Plus,
+  Settings,
+  TrendingUp,
+  Check
 } from 'lucide-react';
 import '../styles/Habits.css';
 
@@ -19,6 +22,18 @@ interface MonthData {
 interface DailyAchievement {
   day: number;
   achievement: string;
+}
+
+interface Activity {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface DailyActivity {
+  day: number;
+  activityId: string;
+  completed: boolean;
 }
 
 
@@ -39,8 +54,15 @@ const Habits: React.FC = () => {
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [tempAchievement, setTempAchievement] = useState<string>('');
   
-  // Ref para el scroll automático
+  // Estados para el tracking de actividades
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [dailyActivities, setDailyActivities] = useState<DailyActivity[]>([]);
+  const [isManagingActivities, setIsManagingActivities] = useState<boolean>(false);
+  const [newActivityName, setNewActivityName] = useState<string>('');
+  
+  // Refs para el scroll automático
   const achievementsGridRef = useRef<HTMLDivElement>(null);
+  const activitiesTableRef = useRef<HTMLDivElement>(null);
 
 
 
@@ -97,6 +119,31 @@ const Habits: React.FC = () => {
       const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
       if (savedAchievements) {
         setDailyAchievements(JSON.parse(savedAchievements));
+      }
+    }
+  }, [monthData]);
+
+  // Cargar actividades guardadas
+  useEffect(() => {
+    if (monthData) {
+      const savedActivities = localStorage.getItem(`activities_${monthData.id}`);
+      if (savedActivities) {
+        setActivities(JSON.parse(savedActivities));
+      } else {
+        // Actividades por defecto
+        const defaultActivities: Activity[] = [
+          { id: '1', name: 'Ejercicio', color: '#FF6B6B' },
+          { id: '2', name: 'Lectura', color: '#4ECDC4' },
+          { id: '3', name: 'Programar', color: '#45B7D1' },
+          { id: '4', name: 'Meditar', color: '#96CEB4' }
+        ];
+        setActivities(defaultActivities);
+        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(defaultActivities));
+      }
+
+      const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
+      if (savedDailyActivities) {
+        setDailyActivities(JSON.parse(savedDailyActivities));
       }
     }
   }, [monthData]);
@@ -201,6 +248,83 @@ const Habits: React.FC = () => {
     setTempAchievement('');
   };
 
+  // Funciones para manejar actividades
+  const generateActivityColors = (): string[] => [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD'
+  ];
+
+  const addActivity = () => {
+    if (newActivityName.trim() && activities.length < 8) {
+      const colors = generateActivityColors();
+      const newActivity: Activity = {
+        id: Date.now().toString(),
+        name: newActivityName.trim(),
+        color: colors[activities.length]
+      };
+      
+      const updatedActivities = [...activities, newActivity];
+      setActivities(updatedActivities);
+      setNewActivityName('');
+      
+      if (monthData) {
+        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
+      }
+    }
+  };
+
+  const removeActivity = (activityId: string) => {
+    const updatedActivities = activities.filter(a => a.id !== activityId);
+    setActivities(updatedActivities);
+    
+    // Remover también las actividades diarias relacionadas
+    const updatedDailyActivities = dailyActivities.filter(da => da.activityId !== activityId);
+    setDailyActivities(updatedDailyActivities);
+    
+    if (monthData) {
+      localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
+      localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+    }
+  };
+
+  const toggleActivity = (day: number, activityId: string) => {
+    const existingIndex = dailyActivities.findIndex(
+      da => da.day === day && da.activityId === activityId
+    );
+    
+    let updatedDailyActivities;
+    if (existingIndex >= 0) {
+      // Toggle existing activity
+      updatedDailyActivities = [...dailyActivities];
+      updatedDailyActivities[existingIndex].completed = !updatedDailyActivities[existingIndex].completed;
+    } else {
+      // Add new activity
+      updatedDailyActivities = [...dailyActivities, {
+        day,
+        activityId,
+        completed: true
+      }];
+    }
+    
+    setDailyActivities(updatedDailyActivities);
+    
+    if (monthData) {
+      localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+    }
+  };
+
+  const isActivityCompleted = (day: number, activityId: string): boolean => {
+    const activity = dailyActivities.find(da => da.day === day && da.activityId === activityId);
+    return activity ? activity.completed : false;
+  };
+
+  const getCompletionPercentage = (day: number): number => {
+    if (activities.length === 0) return 0;
+    const completedCount = activities.filter(activity => 
+      isActivityCompleted(day, activity.id)
+    ).length;
+    return Math.round((completedCount / activities.length) * 100);
+  };
+
 
 
   // Animaciones con GSAP
@@ -220,6 +344,16 @@ const Habits: React.FC = () => {
         gsap.fromTo('.achievements-section', 
           { opacity: 0, y: 30 },
           { opacity: 1, y: 0, duration: 0.8, delay: 0.4, ease: 'power3.out' }
+        );
+
+        gsap.fromTo('.activity-tracker-section', 
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.6, ease: 'power3.out' }
+        );
+
+        gsap.fromTo('.progress-chart-section', 
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.8, ease: 'power3.out' }
         );
       }, containerRef);
 
@@ -383,6 +517,167 @@ const Habits: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </section>
+
+          {/* Sección de tracking de actividades */}
+          <section className="activity-tracker-section">
+            <div className="activity-tracker-container glass-card">
+              <div className="activity-tracker-header">
+                <h2 className="activity-tracker-title">
+                  <Settings className="activity-tracker-icon" />
+                  Tracking de Actividades
+                </h2>
+                <button 
+                  className="manage-activities-btn"
+                  onClick={() => setIsManagingActivities(!isManagingActivities)}
+                >
+                  <Settings className="settings-icon" />
+                  <span>{isManagingActivities ? 'Cerrar' : 'Gestionar'}</span>
+                </button>
+              </div>
+
+              {isManagingActivities && (
+                <div className="activity-management">
+                  <div className="add-activity">
+                    <input
+                      type="text"
+                      value={newActivityName}
+                      onChange={(e) => setNewActivityName(e.target.value)}
+                      placeholder="Nueva actividad..."
+                      className="activity-input"
+                      maxLength={20}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addActivity();
+                      }}
+                    />
+                    <button 
+                      className="add-activity-btn"
+                      onClick={addActivity}
+                      disabled={activities.length >= 8 || !newActivityName.trim()}
+                    >
+                      <Plus className="plus-icon" />
+                      Agregar
+                    </button>
+                  </div>
+                  
+                  <div className="activity-list">
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="activity-item-manage">
+                        <div 
+                          className="activity-color" 
+                          style={{ backgroundColor: activity.color }}
+                        />
+                        <span className="activity-name">{activity.name}</span>
+                        <button 
+                          className="remove-activity-btn"
+                          onClick={() => removeActivity(activity.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <p className="activity-limit">
+                    {activities.length}/8 actividades
+                  </p>
+                </div>
+              )}
+
+              <div className="activity-table-container" ref={activitiesTableRef}>
+                <div className="activity-table">
+                  <div className="activity-table-header">
+                    <div className="day-header">Día</div>
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="activity-header">
+                        <div 
+                          className="activity-dot" 
+                          style={{ backgroundColor: activity.color }}
+                        />
+                        <span className="activity-header-text">{activity.name}</span>
+                      </div>
+                    ))}
+                    <div className="percentage-header">%</div>
+                  </div>
+
+                  <div className="activity-table-body">
+                    {Array.from({ length: getDaysInMonth(monthData.month, monthData.year) }, (_, index) => {
+                      const day = index + 1;
+                      const currentDay = getCurrentDay();
+                      const isCurrentDay = day === currentDay;
+                      const completionPercentage = getCompletionPercentage(day);
+                      
+                      return (
+                        <div key={day} className={`activity-row ${isCurrentDay ? 'current-day-row' : ''}`}>
+                          <div className="day-cell">
+                            <span className="day-number">{day}</span>
+                          </div>
+                          
+                          {activities.map((activity) => (
+                            <div key={activity.id} className="activity-cell">
+                              <button
+                                className={`activity-checkbox ${isActivityCompleted(day, activity.id) ? 'completed' : ''}`}
+                                style={{ 
+                                  borderColor: activity.color,
+                                  backgroundColor: isActivityCompleted(day, activity.id) ? activity.color : 'transparent'
+                                }}
+                                onClick={() => toggleActivity(day, activity.id)}
+                              >
+                                {isActivityCompleted(day, activity.id) && (
+                                  <Check className="check-icon" />
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                          
+                          <div className="percentage-cell">
+                            <span className={`percentage-text ${completionPercentage === 100 ? 'perfect' : completionPercentage >= 50 ? 'good' : 'low'}`}>
+                              {completionPercentage}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Sección de gráfica de progreso */}
+          <section className="progress-chart-section">
+            <div className="progress-chart-container glass-card">
+              <div className="progress-chart-header">
+                <h2 className="progress-chart-title">
+                  <TrendingUp className="progress-chart-icon" />
+                  Tendencia del Mes
+                </h2>
+              </div>
+              
+              <div className="chart-container">
+                <div className="chart-grid">
+                  {Array.from({ length: getDaysInMonth(monthData.month, monthData.year) }, (_, index) => {
+                    const day = index + 1;
+                    const percentage = getCompletionPercentage(day);
+                    const height = Math.max(percentage, 5); // Mínimo 5% para visibilidad
+                    
+                    return (
+                      <div key={day} className="chart-bar-container">
+                        <div 
+                          className="chart-bar"
+                          style={{ 
+                            height: `${height}%`,
+                            backgroundColor: percentage === 100 ? '#4CAF50' : percentage >= 50 ? '#FF9800' : '#F44336'
+                          }}
+                          title={`Día ${day}: ${percentage}%`}
+                        />
+                        <span className="chart-day-label">{day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </section>
