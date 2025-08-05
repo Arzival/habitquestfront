@@ -14,11 +14,7 @@ interface MonthData {
   id: string;
 }
 
-interface HabitData {
-  date: string;
-  completedHabits: number;
-  totalHabits: number;
-}
+
 
 const Habits: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,49 +27,7 @@ const Habits: React.FC = () => {
   const [monthPhrase, setMonthPhrase] = useState<string>('');
   const [isEditingPhrase, setIsEditingPhrase] = useState<boolean>(false);
 
-  // Generar datos de ejemplo para el mes específico
-  const generateMonthHabitData = (month: string, year: number): HabitData[] => {
-    const data: HabitData[] = [];
-    const monthIndex = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ].indexOf(month);
-    
-    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, monthIndex, day);
-      
-      // Generar datos más realistas para el mes
-      const randomValue = Math.random();
-      let completedHabits = 0;
-      
-      if (randomValue > 0.7) {
-        completedHabits = Math.floor(Math.random() * 2) + 1;
-      } else if (randomValue > 0.4) {
-        completedHabits = Math.floor(Math.random() * 2) + 3;
-      } else if (randomValue > 0.15) {
-        completedHabits = Math.floor(Math.random() * 4) + 5;
-      } else if (randomValue > 0.05) {
-        completedHabits = Math.floor(Math.random() * 5) + 9;
-      }
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        completedHabits,
-        totalHabits: 10
-      });
-    }
-    
-    return data;
-  };
 
-  const [habitData] = useState<HabitData[]>(() => {
-    if (monthData) {
-      return generateMonthHabitData(monthData.month, monthData.year);
-    }
-    return [];
-  });
 
   // Cargar datos del mes desde localStorage
   useEffect(() => {
@@ -87,13 +41,7 @@ const Habits: React.FC = () => {
     }
   }, [navigate]);
 
-  // Generar datos cuando cambie el mes
-  useEffect(() => {
-    if (monthData) {
-      const newData = generateMonthHabitData(monthData.month, monthData.year);
-      // Aquí podrías actualizar el estado de habitData si fuera necesario
-    }
-  }, [monthData]);
+
 
   // Función para navegar de vuelta al dashboard
   const handleBackToDashboard = () => {
@@ -128,23 +76,7 @@ const Habits: React.FC = () => {
     }
   }, [monthData]);
 
-  // Función para obtener el color basado en la cantidad de hábitos completados
-  const getContributionColor = (completedHabits: number, totalHabits: number): string => {
-    if (completedHabits === 0) return '#161b22';
-    
-    if (completedHabits >= 4) return '#39d353';
-    if (completedHabits === 3) return '#26a641';
-    if (completedHabits === 2) return '#0e7a3a';
-    return '#216e39';
-  };
 
-  // Función para obtener el tooltip
-  const getTooltip = (data: HabitData): string => {
-    if (data.completedHabits === 0) {
-      return `${data.date} - No completaste ningún hábito`;
-    }
-    return `${data.date} - Completaste ${data.completedHabits} hábitos`;
-  };
 
   // Animaciones con GSAP
   useEffect(() => {
@@ -158,11 +90,6 @@ const Habits: React.FC = () => {
         gsap.fromTo('.phrase-section', 
           { opacity: 0, y: 30 },
           { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: 'power3.out' }
-        );
-
-        gsap.fromTo('.month-contributions-section', 
-          { opacity: 0, y: 30 },
-          { opacity: 1, y: 0, duration: 0.8, delay: 0.4, ease: 'power3.out' }
         );
       }, containerRef);
 
@@ -247,69 +174,7 @@ const Habits: React.FC = () => {
             </div>
           </section>
 
-          {/* Sección de contribuciones del mes */}
-          <section className="month-contributions-section">
-            <div className="contributions-header">
-              <h2 className="section-title">
-                <Calendar className="section-icon" />
-                Progreso de {monthData.month} {monthData.year}
-              </h2>
-              <div className="contribution-legend">
-                <span className="legend-item">
-                  <span className="legend-color" style={{ backgroundColor: '#161b22' }}></span>
-                  <span>Sin actividad</span>
-                </span>
-                <span className="legend-item">
-                  <span className="legend-color" style={{ backgroundColor: '#216e39' }}></span>
-                  <span>1 hábito</span>
-                </span>
-                <span className="legend-item">
-                  <span className="legend-color" style={{ backgroundColor: '#0e7a3a' }}></span>
-                  <span>2 hábitos</span>
-                </span>
-                <span className="legend-item">
-                  <span className="legend-color" style={{ backgroundColor: '#26a641' }}></span>
-                  <span>3 hábitos</span>
-                </span>
-                <span className="legend-item">
-                  <span className="legend-color" style={{ backgroundColor: '#39d353' }}></span>
-                  <span>4+ hábitos</span>
-                </span>
-              </div>
-            </div>
 
-            <div className="month-contribution-container">
-              <div className="days-labels">
-                <span>Dom</span>
-                <span>Lun</span>
-                <span>Mar</span>
-                <span>Mié</span>
-                <span>Jue</span>
-                <span>Vie</span>
-                <span>Sáb</span>
-              </div>
-
-              <div className="month-contribution-grid">
-                {habitData.map((data, index) => (
-                  <div
-                    key={data.date}
-                    className="contribution-cell"
-                    style={{
-                      backgroundColor: getContributionColor(data.completedHabits, data.totalHabits),
-                      animationDelay: `${index * 0.01}s`
-                    }}
-                    title={getTooltip(data)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="contribution-footer">
-              <p className="contribution-info">
-                {habitData.filter(d => d.completedHabits > 0).length} de {habitData.length} días con actividad en {monthData.month}
-              </p>
-            </div>
-          </section>
         </div>
       </main>
     </div>
