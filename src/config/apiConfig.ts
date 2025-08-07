@@ -6,7 +6,13 @@ export const API_ENDPOINTS = {
   habits: '/habits',
   user: '/user',
   dashboard: '/dashboard',
-  progress: '/progress'
+  progress: '/progress',
+  auth: {
+    login: '/auth/login',
+    register: '/auth/register',
+    logout: '/auth/logout',
+    profile: '/auth/profile'
+  }
 };
 
 // Configuración de headers por defecto
