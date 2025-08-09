@@ -213,7 +213,74 @@
   transform: none;
 }
 
-/* Mensaje de error */
+/* Alertas generales */
+.alert {
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  backdrop-filter: var(--glass-blur);
+  animation: slideIn 0.3s ease-out;
+  margin-bottom: 0.5rem;
+}
+
+.alert-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error-red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+.alert-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Errores específicos de campo */
+.field-error {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--error-red);
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.field-error span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Input con error */
+.form-input.error {
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-input.error:focus {
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Mensaje de error (mantenido para compatibilidad) */
 .error-message {
   background: rgba(239, 68, 68, 0.1);
   color: var(--error-red);
