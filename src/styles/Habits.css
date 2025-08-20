@@ -1150,7 +1150,7 @@
 .activity-table-header {
   display: grid;
   grid-template-columns: 60px repeat(var(--activity-count, 4), 1fr) 60px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 26, 0.95);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: sticky;
   top: 0;
