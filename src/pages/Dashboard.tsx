@@ -313,38 +313,9 @@ const Dashboard: React.FC = () => {
       <main className="main-content">
         {/* Header superior */}
         <header className="top-header">
-          <div className="header-left">
-            <div className="search-bar">
-              <input type="text" placeholder="Buscar hábitos..." />
-            </div>
-          </div>
-          
-          <div className="header-center">
-            <div className="stats-summary">
-              <span>Últimos 7 días:</span>
-              <div className="summary-numbers">
-                <span className="summary-number">6</span>
-                <span className="summary-number">8</span>
-                <span className="summary-number">4</span>
-                <span className="summary-number">9</span>
-                <span className="summary-number">7</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="header-right">
-            <div className="user-balance">
-              <span className="balance-amount">215.00</span>
-              <span className="balance-label">Puntos</span>
-            </div>
-            <div className="user-avatar">
-              <div className="avatar-placeholder">U</div>
-            </div>
-            <div className="notification-icons">
-              <div className="notification-dot"></div>
-              <div className="notification-dot"></div>
-              <div className="notification-dot"></div>
-            </div>
+          {/* Header simplificado - solo título */}
+          <div className="header-title">
+            <h1>Dashboard</h1>
           </div>
         </header>
 
