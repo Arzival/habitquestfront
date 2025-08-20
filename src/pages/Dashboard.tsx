@@ -259,6 +259,8 @@ const Dashboard: React.FC = () => {
                 <span>Dashboard</span>
               </a>
             </li>
+            {/* Sección comentada temporalmente - Progreso, Logros, Comunidad, Soporte, Compartir */}
+            {/* 
             <li className="nav-item">
               <a href="#" className="nav-link">
                 <BarChart3 className="nav-icon" />
@@ -289,16 +291,20 @@ const Dashboard: React.FC = () => {
                 <span>Compartir</span>
               </a>
             </li>
+            */}
           </ul>
         </nav>
 
         <div className="sidebar-footer">
+          {/* Sección comentada temporalmente - Botones sociales TG, DC, TT, X */}
+          {/* 
           <div className="social-links">
             <a href="#" className="social-link">TG</a>
             <a href="#" className="social-link">DC</a>
             <a href="#" className="social-link">TT</a>
             <a href="#" className="social-link">X</a>
           </div>
+          */}
         </div>
       </aside>
 

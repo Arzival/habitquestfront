@@ -9,6 +9,11 @@ export interface RegisterRequest {
   password_confirmation: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -18,7 +23,7 @@ export interface User {
   updated_at: string;
 }
 
-export interface RegisterResponse {
+export interface AuthResponse {
   success: boolean;
   data?: {
     user: User;
@@ -32,6 +37,9 @@ export interface RegisterResponse {
   error?: string;
 }
 
+export interface RegisterResponse extends AuthResponse {}
+export interface LoginResponse extends AuthResponse {}
+
 /**
  * Realiza el registro de un nuevo usuario en la API
  * @param userData - Datos del usuario para el registro
@@ -41,6 +49,33 @@ export const registerUser = async (userData: RegisterRequest): Promise<RegisterR
   try {
     const response = await axios.post(
       `${API_BASE_URL}${API_ENDPOINTS.auth.register}`,
+      userData,
+      {
+        headers: DEFAULT_HEADERS,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    // Si axios devuelve un error con respuesta del servidor
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    
+    // Si es un error de red o conexión
+    throw new Error('Error de conexión. Verifica tu conexión a internet.');
+  }
+};
+
+/**
+ * Realiza el login de un usuario en la API
+ * @param userData - Datos del usuario para el login
+ * @returns Promise con la respuesta de la API
+ */
+export const loginUser = async (userData: LoginRequest): Promise<LoginResponse> => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}${API_ENDPOINTS.auth.login}`,
       userData,
       {
         headers: DEFAULT_HEADERS,

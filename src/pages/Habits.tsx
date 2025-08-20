@@ -150,10 +150,10 @@ const Habits: React.FC = () => {
 
   // Scroll automático al día actual cuando se carga el componente
   useEffect(() => {
-    if (monthData && achievementsGridRef.current) {
+    if (monthData && achievementsGridRef.current && activitiesTableRef.current) {
       // Pequeño delay para asegurar que el DOM esté renderizado
       const timer = setTimeout(() => {
-        scrollToCurrentDay();
+        scrollToCurrentDayInBothSections();
       }, 500);
       
       return () => clearTimeout(timer);
@@ -198,11 +198,52 @@ const Habits: React.FC = () => {
     // Calcular la posición del elemento del día actual
     const dayElement = achievementsGridRef.current.querySelector(`[data-day="${currentDay}"]`) as HTMLElement;
     if (dayElement) {
-      dayElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
+      // Calcular la posición relativa dentro del contenedor
+      const container = achievementsGridRef.current;
+      const elementTop = dayElement.offsetTop;
+      const containerHeight = container.clientHeight;
+      const elementHeight = dayElement.clientHeight;
+      
+      // Centrar el elemento en el contenedor
+      const scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+      
+      // Aplicar scroll interno al contenedor
+      container.scrollTo({
+        top: Math.max(0, scrollTop),
+        behavior: 'smooth'
       });
     }
+  };
+
+  // Función para hacer scroll al día actual en la tabla de actividades
+  const scrollToCurrentDayInActivities = () => {
+    const currentDay = getCurrentDay();
+    if (currentDay === -1 || !activitiesTableRef.current) return;
+
+    // Calcular la posición del elemento del día actual en la tabla
+    const dayRow = activitiesTableRef.current.querySelector(`[data-day="${currentDay}"]`) as HTMLElement;
+    if (dayRow) {
+      // Calcular la posición relativa dentro del contenedor
+      const container = activitiesTableRef.current;
+      const elementTop = dayRow.offsetTop;
+      const containerHeight = container.clientHeight;
+      const elementHeight = dayRow.clientHeight;
+      
+      // Centrar el elemento en el contenedor
+      const scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+      
+      // Aplicar scroll interno al contenedor
+      container.scrollTo({
+        top: Math.max(0, scrollTop),
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Función para hacer scroll a ambos elementos del día actual
+  const scrollToCurrentDayInBothSections = () => {
+    scrollToCurrentDay();
+    scrollToCurrentDayInActivities();
   };
 
   // Función para obtener el logro de un día específico
@@ -610,7 +651,11 @@ const Habits: React.FC = () => {
                       const completionPercentage = getCompletionPercentage(day);
                       
                       return (
-                        <div key={day} className={`activity-row ${isCurrentDay ? 'current-day-row' : ''}`}>
+                        <div 
+                          key={day} 
+                          className={`activity-row ${isCurrentDay ? 'current-day-row' : ''}`}
+                          data-day={day}
+                        >
                           <div className="day-cell">
                             <span className="day-number">{day}</span>
                           </div>

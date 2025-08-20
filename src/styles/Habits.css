@@ -1127,6 +1127,21 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Estilos para la barra de scroll de la tabla de actividades */
+.activity-table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-table-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.activity-table-container::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+  border-radius: 3px;
+}
+
 .activity-table {
   width: 100%;
   min-width: 600px;
@@ -1173,8 +1188,7 @@
 }
 
 .activity-table-body {
-  max-height: 35vh;
-  overflow-y: auto;
+  /* Removido overflow-y: auto para que el scroll esté en el contenedor principal */
 }
 
 .activity-row {
