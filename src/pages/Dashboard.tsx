@@ -18,6 +18,7 @@ import {
   X,
   AlertTriangle
 } from 'lucide-react';
+import MonthCard from '../components/MonthCard';
 import '../styles/Dashboard.css';
 
 // Tipos para los datos de hábitos
@@ -134,12 +135,12 @@ const Dashboard: React.FC = () => {
   };
 
   // Función para navegar a la página de habits
-  const handleCardClick = (card: MonthCard) => {
+  const handleCardClick = (cardData: { month: string; year: number; id: string }) => {
     // Guardar la información de la card en localStorage para la página de habits
     localStorage.setItem('selectedMonth', JSON.stringify({
-      month: card.month,
-      year: card.year,
-      id: card.id
+      month: cardData.month,
+      year: cardData.year,
+      id: cardData.id
     }));
     navigate('/habits');
   };
@@ -484,43 +485,15 @@ const Dashboard: React.FC = () => {
             {monthCards.length > 0 ? (
               <div className="month-cards-grid">
                 {monthCards.map((card) => (
-                  <div
+                  <MonthCard
                     key={card.id}
                     id={card.id}
-                    className="month-card glass-card clickable"
-                    onClick={() => handleCardClick(card)}
-                  >
-                    <div className="month-card-header">
-                      <div className="month-card-title">
-                        <Calendar className="month-card-icon" />
-                        <div className="month-card-text">
-                          <h3 className="month-name">{card.month}</h3>
-                          <p className="month-year">{card.year}</p>
-                        </div>
-                      </div>
-                      <button
-                        className="remove-month-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveMonthCard(card.id);
-                        }}
-                        title="Eliminar mes"
-                      >
-                        <X className="remove-icon" />
-                      </button>
-                    </div>
-                    <div className="month-card-content">
-                      <p className="month-card-description">
-                        Card agregada el {card.createdAt.toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                  </div>
+                    month={card.month}
+                    year={card.year}
+                    createdAt={card.createdAt}
+                    onCardClick={handleCardClick}
+                    onRemoveCard={handleRemoveMonthCard}
+                  />
                 ))}
               </div>
             ) : (
