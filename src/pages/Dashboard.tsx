@@ -347,14 +347,6 @@ const Dashboard: React.FC = () => {
           </div>
         </header>
 
-        {/* Botón Agregar */}
-        <div className="add-button-container">
-          <button className="add-button" onClick={handleAddMonthCard}>
-            <Plus className="add-icon" />
-            <span>Agregar</span>
-          </button>
-        </div>
-
         {/* Contenido del dashboard */}
         <div className="dashboard-content">
           {/* Tarjetas de estadísticas */}
@@ -477,12 +469,19 @@ const Dashboard: React.FC = () => {
           </section>
 
           {/* Sección de cards de meses */}
-          {monthCards.length > 0 && (
-            <section className="month-cards-section">
+          <section className="month-cards-section">
+            <div className="month-cards-header">
               <h2 className="section-title">
                 <Calendar className="section-icon" />
                 Meses Agregados
               </h2>
+              <button className="add-month-btn" onClick={handleAddMonthCard}>
+                <Plus className="add-icon" />
+                <span>Agregar Mes</span>
+              </button>
+            </div>
+            
+            {monthCards.length > 0 ? (
               <div className="month-cards-grid">
                 {monthCards.map((card) => (
                   <div
@@ -524,8 +523,14 @@ const Dashboard: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : (
+              <div className="empty-state">
+                <Calendar className="empty-icon" />
+                <p className="empty-text">No hay meses agregados aún</p>
+                <p className="empty-subtext">Haz clic en "Agregar Mes" para comenzar a trackear tus hábitos</p>
+              </div>
+            )}
+          </section>
         </div>
       </main>
 
