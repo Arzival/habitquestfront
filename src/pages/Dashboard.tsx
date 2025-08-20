@@ -16,9 +16,13 @@ import {
   MessageCircle,
   Share2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 import MonthCard from '../components/MonthCard';
+import { logoutUser } from '../requests/authRequests';
+import { registerHabitCard, getUserHabitCards } from '../requests/habitCardRequests';
+import type { HabitCard as HabitCardType } from '../requests/habitCardRequests';
 import '../styles/Dashboard.css';
 
 // Tipos para los datos de hábitos
@@ -40,7 +44,7 @@ interface MonthCard {
   id: string;
   month: string;
   year: number;
-  createdAt: Date;
+  createdAt: string;
 }
 
 interface DeleteModal {
@@ -70,6 +74,11 @@ const Dashboard: React.FC = () => {
     isOpen: false,
     cardToDelete: null
   });
+
+  // Estado para manejar la carga y errores
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Generar datos de ejemplo para el último año (estilo GitHub)
   const generateHabitData = (): HabitData[] => {
@@ -105,33 +114,84 @@ const Dashboard: React.FC = () => {
 
   const [habitData] = useState<HabitData[]>(generateHabitData());
 
-  // Función para agregar nueva card de mes
-  const handleAddMonthCard = () => {
-    const now = new Date();
-    const monthNames = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ];
-    
-    const newCard: MonthCard = {
-      id: `month-${Date.now()}`,
-      month: monthNames[now.getMonth()],
-      year: now.getFullYear(),
-      createdAt: now
-    };
-
-    setMonthCards(prev => [...prev, newCard]);
-
-    // Animación para la nueva card
-    setTimeout(() => {
-      const newCardElement = document.getElementById(newCard.id);
-      if (newCardElement) {
-        gsap.fromTo(newCardElement,
-          { opacity: 0, y: 50, scale: 0.8 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'back.out(1.7)' }
-        );
+  // Función para cargar las habit cards existentes del usuario
+  const loadUserHabitCards = async () => {
+    try {
+      setIsInitialLoading(true);
+      setError(null);
+      
+      const response = await getUserHabitCards();
+      
+      if (response.success && response.data) {
+        setMonthCards(response.data);
+      } else {
+        console.error('Error al cargar las habit cards:', response.message);
+        setError(response.message || 'Error al cargar las tarjetas de hábito');
       }
-    }, 100);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error inesperado al cargar las tarjetas';
+      console.error('Error al cargar habit cards:', error);
+      setError(errorMessage);
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
+
+  // Función para agregar nueva card de mes
+  const handleAddMonthCard = async () => {
+    // Limpiar error anterior si existe
+    if (error) {
+      setError(null);
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      const now = new Date();
+      const monthNames = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      ];
+      
+      const cardData = {
+        month: monthNames[now.getMonth()],
+        year: now.getFullYear()
+      };
+
+      // Llamar a la API para registrar la nueva card
+      const response = await registerHabitCard(cardData);
+      
+      if (response.success && response.data) {
+        // Actualizar el estado con todas las cards del usuario
+        setMonthCards(response.data);
+        
+        // Limpiar error si existe
+        if (error) {
+          setError(null);
+        }
+        
+        // Animación para la nueva card (la última agregada)
+        setTimeout(() => {
+          const lastCard = response.data![response.data!.length - 1];
+          const newCardElement = document.getElementById(lastCard.id);
+          if (newCardElement) {
+            gsap.fromTo(newCardElement,
+              { opacity: 0, y: 50, scale: 0.8 },
+              { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'back.out(1.7)' }
+            );
+          }
+        }, 100);
+      } else {
+        setError(response.message || 'Error al registrar la tarjeta de hábito');
+        console.error('Error al registrar la card:', response.message);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error inesperado al agregar mes';
+      setError(errorMessage);
+      console.error('Error al agregar mes:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Función para navegar a la página de habits
@@ -181,6 +241,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Función para cerrar sesión
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      // Redirigir al home después de cerrar sesión
+      navigate('/');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      // Aún así redirigir al home si hay error
+      navigate('/');
+    }
+  };
+
   // Función para eliminar card de mes (deprecada, ahora usa modal)
   const handleRemoveMonthCard = (id: string) => {
     const card = monthCards.find(c => c.id === id);
@@ -188,6 +261,11 @@ const Dashboard: React.FC = () => {
       handleOpenDeleteModal(card);
     }
   };
+
+  // Cargar habit cards existentes al montar el componente
+  useEffect(() => {
+    loadUserHabitCards();
+  }, []);
 
   // Animaciones con GSAP
   useEffect(() => {
@@ -313,9 +391,17 @@ const Dashboard: React.FC = () => {
       <main className="main-content">
         {/* Header superior */}
         <header className="top-header">
-          {/* Header simplificado - solo título */}
-          <div className="header-title">
-            <h1>Dashboard</h1>
+          {/* Header con título centrado y acciones a la derecha */}
+          <div className="header-content">
+            <div className="header-title">
+              <h1>Dashboard</h1>
+            </div>
+            <div className="header-actions">
+              <button className="header-action-btn" onClick={handleLogout}>
+                <LogOut className="header-action-icon" />
+                <span className="tooltip-text">Cerrar Sesión</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -447,13 +533,38 @@ const Dashboard: React.FC = () => {
                 <Calendar className="section-icon" />
                 Meses Agregados
               </h2>
-              <button className="add-month-btn" onClick={handleAddMonthCard}>
+              <button 
+                className="add-month-btn" 
+                onClick={handleAddMonthCard}
+                disabled={isLoading}
+              >
                 <Plus className="add-icon" />
-                <span>Agregar Mes</span>
+                <span>{isLoading ? 'Agregando...' : 'Agregar Mes'}</span>
               </button>
             </div>
             
-            {monthCards.length > 0 ? (
+            {/* Mostrar mensaje de error si existe */}
+            {error && (
+              <div className="error-message">
+                <AlertTriangle className="error-icon" />
+                <span>{error}</span>
+                <button 
+                  className="retry-btn" 
+                  onClick={loadUserHabitCards}
+                  disabled={isInitialLoading}
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+            
+            {/* Estado de carga inicial */}
+            {isInitialLoading ? (
+              <div className="loading-state">
+                <div className="loading-spinner"></div>
+                <p className="loading-text">Cargando tarjetas de hábito...</p>
+              </div>
+            ) : monthCards.length > 0 ? (
               <div className="month-cards-grid">
                 {monthCards.map((card) => (
                   <MonthCard

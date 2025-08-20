@@ -6,7 +6,7 @@ interface MonthCardProps {
   id: string;
   month: string;
   year: number;
-  createdAt: Date;
+  createdAt: string;
   onCardClick: (card: { month: string; year: number; id: string }) => void;
   onRemoveCard: (id: string) => void;
 }
@@ -54,7 +54,7 @@ const MonthCard: React.FC<MonthCardProps> = ({
       </div>
       <div className="month-card-content">
         <p className="month-card-description">
-          Card agregada el {createdAt.toLocaleDateString('es-ES', {
+          Card agregada el {new Date(createdAt).toLocaleDateString('es-ES', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',

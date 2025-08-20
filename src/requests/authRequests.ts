@@ -146,3 +146,46 @@ export const getUserData = (): User | null => {
 export const removeUserData = (): void => {
   localStorage.removeItem('user_data');
 };
+
+/**
+ * Realiza el logout del usuario
+ * @returns Promise con la respuesta de la API
+ */
+export const logoutUser = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    const token = getAuthToken();
+    
+    if (!token) {
+      throw new Error('No hay token de autenticación');
+    }
+
+    const response = await axios.post(
+      `${API_BASE_URL}${API_ENDPOINTS.auth.logout}`,
+      {},
+      {
+        headers: {
+          ...DEFAULT_HEADERS,
+          'Authorization': token
+        },
+      }
+    );
+
+    // Limpiar datos locales independientemente de la respuesta del servidor
+    removeAuthToken();
+    removeUserData();
+
+    return response.data;
+  } catch (error) {
+    // Si hay error, igual limpiar datos locales
+    removeAuthToken();
+    removeUserData();
+    
+    // Si axios devuelve un error con respuesta del servidor
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    
+    // Si es un error de red o conexión
+    throw new Error('Error de conexión al cerrar sesión. Los datos locales han sido limpiados.');
+  }
+};
