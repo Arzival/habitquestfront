@@ -503,7 +503,7 @@ const Habits: React.FC = () => {
                   return (
                     <div 
                       key={day} 
-                      className={`achievement-item ${achievement ? 'has-achievement' : ''} ${isCurrentDay ? 'current-day' : ''}`}
+                      className={`achievement-item ${achievement ? 'has-achievement' : ''} ${isCurrentDay ? 'current-day' : ''} ${isEditing ? 'editing' : ''}`}
                       data-day={day}
                     >
                       <div className="achievement-day">
