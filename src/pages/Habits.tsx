@@ -268,15 +268,8 @@ const Habits: React.FC = () => {
     if (editingDay === null || !monthData) return;
 
     try {
-      // Debug: verificar el token antes de hacer la petición
+      // Obtener el token de autenticación
       const token = localStorage.getItem('auth_token');
-      const tokenType = localStorage.getItem('token_type');
-      const userData = localStorage.getItem('user_data');
-      
-      console.log('Token en localStorage:', token);
-      console.log('Tipo de token:', tokenType);
-      console.log('Token completo:', token ? `${tokenType || 'Bearer'} ${token}` : 'No hay token');
-      console.log('Datos del usuario:', userData);
 
       // Verificar si el usuario está autenticado
       if (!token) {
@@ -306,9 +299,7 @@ const Habits: React.FC = () => {
       };
 
       // Llamar a la API para guardar el logro
-      console.log('Llamando a saveDailyAchievement...');
       const response = await saveDailyAchievement(achievementData);
-      console.log('Respuesta de saveDailyAchievement:', response);
 
       if (response.success) {
         // Actualizar el estado local con el nuevo logro

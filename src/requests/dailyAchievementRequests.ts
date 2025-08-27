@@ -31,23 +31,12 @@ export interface DailyAchievementResponse {
  */
 export const saveDailyAchievement = async (achievementData: DailyAchievementRequest): Promise<DailyAchievementResponse> => {
   try {
-    console.log('=== INICIANDO saveDailyAchievement ===');
-    console.log('Datos recibidos:', achievementData);
-    
     const token = getAuthToken();
-    console.log('Token obtenido de getAuthToken:', token);
     
     if (!token) {
       throw new Error('No hay token de autenticación');
     }
 
-    console.log('URL de la API:', `${API_BASE_URL}/daily-achievements`);
-    console.log('Headers a enviar:', {
-      ...DEFAULT_HEADERS,
-      'Authorization': `Bearer ${token}`
-    });
-
-    console.log('Haciendo petición POST...');
     const response = await axios.post(
       `${API_BASE_URL}/daily-achievements`,
       achievementData,
@@ -59,21 +48,14 @@ export const saveDailyAchievement = async (achievementData: DailyAchievementRequ
       }
     );
 
-    console.log('Respuesta recibida:', response.data);
     return response.data;
   } catch (error) {
-    console.error('=== ERROR EN saveDailyAchievement ===');
-    console.error('Error completo:', error);
-    console.error('Tipo de error:', typeof error);
-    
     // Si axios devuelve un error con respuesta del servidor
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Es un error de Axios con respuesta');
       return error.response.data;
     }
     
     // Si es un error de red o conexión
-    console.error('No es un error de Axios, lanzando error genérico');
     throw new Error('Error de conexión. Verifica tu conexión a internet.');
   }
 };
