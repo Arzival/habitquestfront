@@ -12,6 +12,8 @@ import {
   Check
 } from 'lucide-react';
 import '../styles/Habits.css';
+import { saveDailyAchievement } from '../requests/dailyAchievementRequests';
+import type { DailyAchievementRequest } from '../requests/dailyAchievementRequests';
 
 interface MonthData {
   month: string;
@@ -59,6 +61,9 @@ const Habits: React.FC = () => {
   const [dailyActivities, setDailyActivities] = useState<DailyActivity[]>([]);
   const [isManagingActivities, setIsManagingActivities] = useState<boolean>(false);
   const [newActivityName, setNewActivityName] = useState<string>('');
+  
+  // Estado para mensajes de la API
+  const [apiMessage, setApiMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
   // Refs para el scroll automático
   const achievementsGridRef = useRef<HTMLDivElement>(null);
@@ -259,24 +264,90 @@ const Habits: React.FC = () => {
   };
 
   // Función para guardar el logro de un día
-  const handleSaveAchievement = () => {
-    if (editingDay === null) return;
+  const handleSaveAchievement = async () => {
+    if (editingDay === null || !monthData) return;
 
-    const updatedAchievements = dailyAchievements.filter(a => a.day !== editingDay);
-    
-    if (tempAchievement.trim()) {
-      updatedAchievements.push({
+    try {
+      // Debug: verificar el token antes de hacer la petición
+      const token = localStorage.getItem('auth_token');
+      const tokenType = localStorage.getItem('token_type');
+      const userData = localStorage.getItem('user_data');
+      
+      console.log('Token en localStorage:', token);
+      console.log('Tipo de token:', tokenType);
+      console.log('Token completo:', token ? `${tokenType || 'Bearer'} ${token}` : 'No hay token');
+      console.log('Datos del usuario:', userData);
+
+      // Verificar si el usuario está autenticado
+      if (!token) {
+        setApiMessage({ 
+          type: 'error', 
+          text: 'No estás autenticado. Por favor, inicia sesión nuevamente.' 
+        });
+        setTimeout(() => setApiMessage(null), 5000);
+        return;
+      }
+
+      // Verificar que el token exista
+      if (!token) {
+        setApiMessage({ 
+          type: 'error', 
+          text: 'No hay token de autenticación. Por favor, inicia sesión nuevamente.' 
+        });
+        setTimeout(() => setApiMessage(null), 5000);
+        return;
+      }
+
+      // Preparar los datos para la API
+      const achievementData: DailyAchievementRequest = {
+        habitcard_id: parseInt(monthData.id),
         day: editingDay,
-        achievement: tempAchievement.trim()
-      });
-    }
+        achievement_text: tempAchievement.trim()
+      };
 
-    updatedAchievements.sort((a, b) => a.day - b.day);
-    setDailyAchievements(updatedAchievements);
-    
-    // Guardar en localStorage
-    if (monthData) {
-      localStorage.setItem(`achievements_${monthData.id}`, JSON.stringify(updatedAchievements));
+      // Llamar a la API para guardar el logro
+      console.log('Llamando a saveDailyAchievement...');
+      const response = await saveDailyAchievement(achievementData);
+      console.log('Respuesta de saveDailyAchievement:', response);
+
+      if (response.success) {
+        // Actualizar el estado local con el nuevo logro
+        const updatedAchievements = dailyAchievements.filter(a => a.day !== editingDay);
+        
+        if (tempAchievement.trim()) {
+          updatedAchievements.push({
+            day: editingDay,
+            achievement: tempAchievement.trim()
+          });
+        }
+
+        updatedAchievements.sort((a, b) => a.day - b.day);
+        setDailyAchievements(updatedAchievements);
+        
+        // Guardar también en localStorage como respaldo
+        localStorage.setItem(`achievements_${monthData.id}`, JSON.stringify(updatedAchievements));
+        
+        // Mostrar mensaje de éxito
+        setApiMessage({ type: 'success', text: response.message });
+        
+        // Limpiar el mensaje después de 3 segundos
+        setTimeout(() => setApiMessage(null), 3000);
+      } else {
+        // Manejar error de la API
+        setApiMessage({ type: 'error', text: response.message || 'Error al guardar el logro' });
+        
+        // Limpiar el mensaje después de 5 segundos
+        setTimeout(() => setApiMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error al guardar el logro:', error);
+      setApiMessage({ 
+        type: 'error', 
+        text: 'Error de conexión. Verifica tu conexión a internet.' 
+      });
+      
+      // Limpiar el mensaje después de 5 segundos
+      setTimeout(() => setApiMessage(null), 5000);
     }
 
     setEditingDay(null);
@@ -428,6 +499,13 @@ const Habits: React.FC = () => {
 
       {/* Contenido principal */}
       <main className="habits-main">
+        {/* Mensajes de la API */}
+        {apiMessage && (
+          <div className={`api-message ${apiMessage.type}`}>
+            <span>{apiMessage.text}</span>
+          </div>
+        )}
+        
         <div className="habits-content">
           {/* Sección de frase del mes */}
           <section className="phrase-section">
