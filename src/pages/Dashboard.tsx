@@ -17,7 +17,8 @@ import {
   Share2,
   X,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Menu
 } from 'lucide-react';
 import MonthCard from '../components/MonthCard';
 import { logoutUser } from '../requests/authRequests';
@@ -79,6 +80,21 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Estado para controlar el sidebar en móviles
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar si estamos en móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Generar datos de ejemplo para el último año (estilo GitHub)
   const generateHabitData = (): HabitData[] => {
@@ -319,10 +335,35 @@ const Dashboard: React.FC = () => {
     return `${data.date} - Completaste ${data.completedHabits} hábitos`;
   };
 
+  // Función para toggle del sidebar
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  // Cerrar sidebar al hacer clic fuera (solo en móviles)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isMobile && isSidebarOpen && !target.closest('.sidebar') && !target.closest('.menu-toggle-btn')) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    if (isMobile && isSidebarOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isMobile, isSidebarOpen]);
+
   return (
     <div ref={containerRef} className="dashboard-layout">
+      {/* Overlay para móviles */}
+      {isSidebarOpen && isMobile && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
+
       {/* Sidebar de navegación */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
             <Trophy className="logo-icon" />
@@ -393,6 +434,9 @@ const Dashboard: React.FC = () => {
         <header className="top-header">
           {/* Header con título centrado y acciones a la derecha */}
           <div className="header-content">
+            <button className="menu-toggle-btn" onClick={toggleSidebar} aria-label="Toggle menu">
+              <Menu className="menu-icon" />
+            </button>
             <div className="header-title">
               <h1>Dashboard</h1>
             </div>

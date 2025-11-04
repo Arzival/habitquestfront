@@ -1,5 +1,5 @@
 // Configuración global de la API
-export const API_BASE_URL = 'http://habitquest.test/api';
+export const API_BASE_URL = 'http://habitquestback.test/api';
 
 // Configuración de endpoints
 export const API_ENDPOINTS = {
