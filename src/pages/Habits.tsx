@@ -12,7 +12,7 @@ import {
   Check
 } from 'lucide-react';
 import '../styles/Habits.css';
-import { saveDailyAchievement } from '../requests/dailyAchievementRequests';
+import { saveDailyAchievement, getDailyAchievementsByHabitCard } from '../requests/dailyAchievementRequests';
 import type { DailyAchievementRequest } from '../requests/dailyAchievementRequests';
 
 interface MonthData {
@@ -118,14 +118,67 @@ const Habits: React.FC = () => {
     }
   }, [monthData]);
 
-  // Cargar logros diarios guardados
+  // Cargar logros diarios desde la API
   useEffect(() => {
-    if (monthData) {
-      const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
-      if (savedAchievements) {
-        setDailyAchievements(JSON.parse(savedAchievements));
+    const loadDailyAchievements = async () => {
+      if (!monthData) return;
+
+      try {
+        // Convertir el ID a número (puede venir como string con formato "Mes-timestamp")
+        let habitcardIdNumber: number;
+        
+        if (typeof monthData.id === 'number') {
+          habitcardIdNumber = monthData.id;
+        } else if (typeof monthData.id === 'string' && monthData.id.includes('-')) {
+          // Si el ID tiene formato "Mes-timestamp", extraer solo la parte numérica
+          const numericPart = monthData.id.split('-')[1];
+          habitcardIdNumber = parseInt(numericPart);
+        } else {
+          habitcardIdNumber = parseInt(monthData.id);
+        }
+
+        if (isNaN(habitcardIdNumber)) {
+          console.error('ID de habitcard inválido:', monthData.id);
+          // Fallback a localStorage si el ID no es válido
+          const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
+          if (savedAchievements) {
+            setDailyAchievements(JSON.parse(savedAchievements));
+          }
+          return;
+        }
+
+        // Llamar a la API para obtener los logros
+        const response = await getDailyAchievementsByHabitCard(habitcardIdNumber);
+
+        if (response.success && response.data) {
+          // Mapear los datos de la API al formato que usa el componente
+          const mappedAchievements = response.data.map(achievement => ({
+            day: achievement.day,
+            achievement: achievement.achievement_text
+          }));
+
+          setDailyAchievements(mappedAchievements);
+          
+          // Guardar también en localStorage como respaldo
+          localStorage.setItem(`achievements_${monthData.id}`, JSON.stringify(mappedAchievements));
+        } else {
+          // Si hay error, intentar cargar desde localStorage como fallback
+          const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
+          if (savedAchievements) {
+            setDailyAchievements(JSON.parse(savedAchievements));
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar logros diarios:', error);
+        // Fallback a localStorage en caso de error
+        const savedAchievements = localStorage.getItem(`achievements_${monthData.id}`);
+        if (savedAchievements) {
+          setDailyAchievements(JSON.parse(savedAchievements));
+        }
       }
-    }
+    };
+
+    loadDailyAchievements();
   }, [monthData]);
 
   // Cargar actividades guardadas

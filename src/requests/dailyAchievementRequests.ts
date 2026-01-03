@@ -24,6 +24,12 @@ export interface DailyAchievementResponse {
   data: DailyAchievement | null;
 }
 
+export interface GetDailyAchievementsResponse {
+  success: boolean;
+  message: string;
+  data: DailyAchievement[] | null;
+}
+
 /**
  * Guarda un logro diario en la API
  * @param achievementData - Datos del logro (habitcard_id, day, achievement_text)
@@ -44,6 +50,42 @@ export const saveDailyAchievement = async (achievementData: DailyAchievementRequ
         headers: {
           ...DEFAULT_HEADERS,
           'Authorization': `Bearer ${token}`
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    // Si axios devuelve un error con respuesta del servidor
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    
+    // Si es un error de red o conexión
+    throw new Error('Error de conexión. Verifica tu conexión a internet.');
+  }
+};
+
+/**
+ * Obtiene todos los logros diarios de una habitcard específica desde la API
+ * @param habitcardId - ID de la habitcard
+ * @returns Promise con la respuesta de la API incluyendo todos los logros
+ */
+export const getDailyAchievementsByHabitCard = async (habitcardId: number): Promise<GetDailyAchievementsResponse> => {
+  try {
+    const token = getAuthToken();
+    
+    if (!token) {
+      throw new Error('No hay token de autenticación');
+    }
+
+    const response = await axios.post(
+      `${API_BASE_URL}/daily-achievements/habitcard`,
+      { habitcard_id: habitcardId },
+      {
+        headers: {
+          ...DEFAULT_HEADERS,
+          'Authorization': token
         },
       }
     );
