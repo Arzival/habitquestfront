@@ -298,3 +298,52 @@ export const getDailyProgress = async (): Promise<GetDailyProgressResponse> => {
   }
 };
 
+// Tipos para las estadísticas
+export interface ActivityStats {
+  completedToday: number;
+  currentStreak: number;
+  longestStreak: number;
+  monthlyProgress: number;
+}
+
+export interface GetStatsResponse {
+  success: boolean;
+  message: string;
+  data: ActivityStats | null;
+}
+
+/**
+ * Obtiene las estadísticas generales del usuario para el dashboard
+ * @returns Promise con la respuesta de la API incluyendo las estadísticas
+ */
+export const getActivityStats = async (): Promise<GetStatsResponse> => {
+  try {
+    const token = getAuthToken();
+    
+    if (!token) {
+      throw new Error('No hay token de autenticación');
+    }
+
+    const response = await axios.post(
+      `${API_BASE_URL}/activities/stats`,
+      {},
+      {
+        headers: {
+          ...DEFAULT_HEADERS,
+          'Authorization': token
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    // Si axios devuelve un error con respuesta del servidor
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    
+    // Si es un error de red o conexión
+    throw new Error('Error de conexión. Verifica tu conexión a internet.');
+  }
+};
+

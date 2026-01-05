@@ -24,7 +24,7 @@ import MonthCard from '../components/MonthCard';
 import { logoutUser } from '../requests/authRequests';
 import { registerHabitCard, getUserHabitCards } from '../requests/habitCardRequests';
 import type { HabitCard as HabitCardType } from '../requests/habitCardRequests';
-import { getDailyProgress } from '../requests/activityRequests';
+import { getDailyProgress, getActivityStats } from '../requests/activityRequests';
 import '../styles/Dashboard.css';
 
 // Tipos para los datos de hábitos
@@ -59,14 +59,15 @@ const Dashboard: React.FC = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
-  // Datos mock para la aplicación
+  // Estado para las estadísticas de hábitos
   const [habitStats, setHabitStats] = useState<HabitStats>({
-    totalHabits: 10,
-    completedToday: 6,
-    currentStreak: 7,
-    longestStreak: 21,
-    monthlyProgress: 75
+    totalHabits: 0,
+    completedToday: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    monthlyProgress: 0
   });
+  const [isLoadingStats, setIsLoadingStats] = useState<boolean>(true);
 
   // Estado para las cards de meses
   const [monthCards, setMonthCards] = useState<MonthCard[]>([]);
@@ -100,6 +101,45 @@ const Dashboard: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Función para cargar las estadísticas desde la API
+  const loadStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const response = await getActivityStats();
+      
+      if (response.success && response.data) {
+        setHabitStats({
+          totalHabits: 0, // Este campo no se usa actualmente en las cards
+          completedToday: response.data.completedToday,
+          currentStreak: response.data.currentStreak,
+          longestStreak: response.data.longestStreak,
+          monthlyProgress: response.data.monthlyProgress
+        });
+      } else {
+        // Si hay error, mantener valores en 0
+        setHabitStats({
+          totalHabits: 0,
+          completedToday: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          monthlyProgress: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar las estadísticas:', error);
+      // En caso de error, mantener valores en 0
+      setHabitStats({
+        totalHabits: 0,
+        completedToday: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        monthlyProgress: 0
+      });
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
 
   // Función para cargar el progreso diario desde la API
   const loadDailyProgress = async () => {
@@ -303,12 +343,14 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadUserHabitCards();
     loadDailyProgress();
+    loadStats();
   }, []);
 
-  // Recargar el progreso cuando se actualicen las habit cards (por si se agregó una nueva)
+  // Recargar el progreso y estadísticas cuando se actualicen las habit cards (por si se agregó una nueva)
   useEffect(() => {
     if (monthCards.length > 0) {
       loadDailyProgress();
+      loadStats();
     }
   }, [monthCards.length]);
 
@@ -346,6 +388,71 @@ const Dashboard: React.FC = () => {
     }
   }, [deleteModal.isOpen]);
 
+  // Función para organizar los datos por filas (días de la semana) y columnas (semanas)
+  // Esto permite que el grid se llene de arriba hacia abajo en lugar de izquierda a derecha
+  const organizeDataByRows = (data: HabitData[]): (HabitData | null)[][] => {
+    if (data.length === 0) return [];
+    
+    const dataMap = new Map<string, HabitData>();
+    
+    // Crear un mapa de fechas para acceso rápido
+    data.forEach(item => {
+      dataMap.set(item.date, item);
+    });
+
+    // Obtener la fecha más antigua (hace 365 días)
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setDate(oneYearAgo.getDate() - 364);
+    
+    // Encontrar el primer domingo antes o en la fecha más antigua
+    const startDate = new Date(oneYearAgo);
+    const startDayOfWeek = startDate.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+    
+    // Ajustar al inicio de la semana (domingo = 0)
+    startDate.setDate(startDate.getDate() - startDayOfWeek);
+    
+    // Calcular número de semanas necesarias
+    const endDate = new Date(today);
+    const weeksCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    
+    // Crear estructura: 7 filas (días de la semana) × N semanas (columnas)
+    const rows: (HabitData | null)[][] = [];
+    
+    // Inicializar las 7 filas (una por cada día de la semana)
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      rows.push([]);
+    }
+    
+    // Llenar los datos semana por semana, pero organizados por día de la semana
+    const currentDate = new Date(startDate);
+    
+    for (let weekIndex = 0; weekIndex < weeksCount; weekIndex++) {
+      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+        const dateString = currentDate.toISOString().split('T')[0];
+        const dataItem = dataMap.get(dateString);
+        
+        if (dataItem) {
+          rows[dayOfWeek].push(dataItem);
+        } else {
+          // Si no hay datos para este día, crear un placeholder
+          rows[dayOfWeek].push({
+            date: dateString,
+            completedHabits: 0,
+            totalHabits: 1
+          });
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+        
+        // Si hemos pasado la fecha de hoy, salir
+        if (currentDate > endDate) break;
+      }
+    }
+    
+    return rows;
+  };
+
   // Función para obtener el color basado en la cantidad de hábitos completados
   const getContributionColor = (completedHabits: number, totalHabits: number): string => {
     if (completedHabits === 0) return '#161b22';
@@ -362,6 +469,38 @@ const Dashboard: React.FC = () => {
       return `${data.date} - No completaste ningún hábito`;
     }
     return `${data.date} - Completaste ${data.completedHabits} hábitos`;
+  };
+
+  // Organizar datos por filas (días de la semana) y columnas (semanas)
+  const rowsData = organizeDataByRows(habitData);
+  
+  // Calcular qué meses aparecen en cada columna (para las etiquetas de meses)
+  const getMonthLabels = () => {
+    if (habitData.length === 0 || rowsData.length === 0 || rowsData[0].length === 0) return [];
+    
+    const monthLabels: { month: string; startWeek: number }[] = [];
+    const seenMonths = new Set<string>();
+    
+    // Revisar la primera fila (domingos) para determinar los meses
+    const sundayRow = rowsData[0]; // Domingo es el índice 0
+    
+    sundayRow.forEach((day, weekIndex) => {
+      if (day) {
+        const date = new Date(day.date);
+        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+        
+        if (!seenMonths.has(monthKey)) {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          monthLabels.push({
+            month: monthNames[date.getMonth()],
+            startWeek: weekIndex
+          });
+          seenMonths.add(monthKey);
+        }
+      }
+    });
+    
+    return monthLabels;
   };
 
   // Función para toggle del sidebar
@@ -488,7 +627,9 @@ const Dashboard: React.FC = () => {
                   <CheckCircle className="icon-success" />
                 </div>
                 <div className="stats-content">
-                  <h3 className="stats-number">{habitStats.completedToday}</h3>
+                  <h3 className="stats-number">
+                    {isLoadingStats ? '...' : habitStats.completedToday}
+                  </h3>
                   <p className="stats-label">Completados hoy</p>
                 </div>
               </div>
@@ -498,7 +639,9 @@ const Dashboard: React.FC = () => {
                   <Trophy className="icon-warning" />
                 </div>
                 <div className="stats-content">
-                  <h3 className="stats-number">{habitStats.currentStreak}</h3>
+                  <h3 className="stats-number">
+                    {isLoadingStats ? '...' : habitStats.currentStreak}
+                  </h3>
                   <p className="stats-label">Racha actual</p>
                 </div>
               </div>
@@ -508,7 +651,9 @@ const Dashboard: React.FC = () => {
                   <Target className="icon-primary" />
                 </div>
                 <div className="stats-content">
-                  <h3 className="stats-number">{habitStats.longestStreak}</h3>
+                  <h3 className="stats-number">
+                    {isLoadingStats ? '...' : habitStats.longestStreak}
+                  </h3>
                   <p className="stats-label">Mejor racha</p>
                 </div>
               </div>
@@ -518,7 +663,9 @@ const Dashboard: React.FC = () => {
                   <TrendingUp className="icon-success" />
                 </div>
                 <div className="stats-content">
-                  <h3 className="stats-number">{habitStats.monthlyProgress}%</h3>
+                  <h3 className="stats-number">
+                    {isLoadingStats ? '...' : `${habitStats.monthlyProgress}%`}
+                  </h3>
                   <p className="stats-label">Progreso mensual</p>
                 </div>
               </div>
@@ -569,9 +716,9 @@ const Dashboard: React.FC = () => {
 
               <div className="contribution-content">
                 <div className="months-labels">
-                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, index) => (
-                    <span key={month} style={{ gridColumn: `${index * 4 + 1} / span 4` }}>
-                      {month}
+                  {getMonthLabels().map((label, index) => (
+                    <span key={`${label.month}-${index}`} style={{ gridColumn: `${label.startWeek + 1} / span 4` }}>
+                      {label.month}
                     </span>
                   ))}
                 </div>
@@ -582,17 +729,23 @@ const Dashboard: React.FC = () => {
                       Cargando progreso...
                     </div>
                   ) : (
-                    habitData.map((data, index) => (
-                      <div
-                        key={data.date}
-                        className="contribution-cell"
-                        style={{
-                          backgroundColor: getContributionColor(data.completedHabits, data.totalHabits),
-                          animationDelay: `${index * 0.01}s`
-                        }}
-                        title={getTooltip(data)}
-                      />
-                    ))
+                    rowsData.map((row, rowIndex) =>
+                      row.map((day, colIndex) => {
+                        if (!day) return null;
+                        const cellIndex = rowIndex * row.length + colIndex;
+                        return (
+                          <div
+                            key={`${day.date}-${cellIndex}`}
+                            className="contribution-cell"
+                            style={{
+                              backgroundColor: getContributionColor(day.completedHabits, day.totalHabits),
+                              animationDelay: `${cellIndex * 0.01}s`
+                            }}
+                            title={getTooltip(day)}
+                          />
+                        );
+                      })
+                    )
                   )}
                 </div>
               </div>
