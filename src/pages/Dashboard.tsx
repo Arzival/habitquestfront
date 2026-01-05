@@ -24,6 +24,7 @@ import MonthCard from '../components/MonthCard';
 import { logoutUser } from '../requests/authRequests';
 import { registerHabitCard, getUserHabitCards } from '../requests/habitCardRequests';
 import type { HabitCard as HabitCardType } from '../requests/habitCardRequests';
+import { getDailyProgress } from '../requests/activityRequests';
 import '../styles/Dashboard.css';
 
 // Tipos para los datos de hábitos
@@ -70,6 +71,10 @@ const Dashboard: React.FC = () => {
   // Estado para las cards de meses
   const [monthCards, setMonthCards] = useState<MonthCard[]>([]);
 
+  // Estado para los datos de progreso de hábitos
+  const [habitData, setHabitData] = useState<HabitData[]>([]);
+  const [isLoadingProgress, setIsLoadingProgress] = useState<boolean>(true);
+
   // Estado para el modal de confirmación
   const [deleteModal, setDeleteModal] = useState<DeleteModal>({
     isOpen: false,
@@ -96,39 +101,55 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Generar datos de ejemplo para el último año (estilo GitHub)
-  const generateHabitData = (): HabitData[] => {
-    const data: HabitData[] = [];
-    const today = new Date();
-    
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
+  // Función para cargar el progreso diario desde la API
+  const loadDailyProgress = async () => {
+    try {
+      setIsLoadingProgress(true);
+      const response = await getDailyProgress();
       
-      const randomValue = Math.random();
-      let completedHabits = 0;
-      
-      if (randomValue > 0.7) {
-        completedHabits = Math.floor(Math.random() * 2) + 1;
-      } else if (randomValue > 0.4) {
-        completedHabits = Math.floor(Math.random() * 2) + 3;
-      } else if (randomValue > 0.15) {
-        completedHabits = Math.floor(Math.random() * 4) + 5;
-      } else if (randomValue > 0.05) {
-        completedHabits = Math.floor(Math.random() * 5) + 9;
+      if (response.success && response.data) {
+        // Mapear los datos de la API al formato que usa el componente
+        const mappedData: HabitData[] = response.data.map(item => ({
+          date: item.date,
+          completedHabits: item.completedHabits,
+          totalHabits: item.totalHabits
+        }));
+        
+        setHabitData(mappedData);
+      } else {
+        // Si hay error, inicializar con datos vacíos
+        const today = new Date();
+        const emptyData: HabitData[] = [];
+        for (let i = 364; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          emptyData.push({
+            date: date.toISOString().split('T')[0],
+            completedHabits: 0,
+            totalHabits: 1
+          });
+        }
+        setHabitData(emptyData);
       }
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        completedHabits,
-        totalHabits: 10
-      });
+    } catch (error) {
+      console.error('Error al cargar el progreso diario:', error);
+      // En caso de error, inicializar con datos vacíos
+      const today = new Date();
+      const emptyData: HabitData[] = [];
+      for (let i = 364; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        emptyData.push({
+          date: date.toISOString().split('T')[0],
+          completedHabits: 0,
+          totalHabits: 1
+        });
+      }
+      setHabitData(emptyData);
+    } finally {
+      setIsLoadingProgress(false);
     }
-    
-    return data;
   };
-
-  const [habitData] = useState<HabitData[]>(generateHabitData());
 
   // Función para cargar las habit cards existentes del usuario
   const loadUserHabitCards = async () => {
@@ -281,7 +302,15 @@ const Dashboard: React.FC = () => {
   // Cargar habit cards existentes al montar el componente
   useEffect(() => {
     loadUserHabitCards();
+    loadDailyProgress();
   }, []);
+
+  // Recargar el progreso cuando se actualicen las habit cards (por si se agregó una nueva)
+  useEffect(() => {
+    if (monthCards.length > 0) {
+      loadDailyProgress();
+    }
+  }, [monthCards.length]);
 
   // Animaciones con GSAP
   useEffect(() => {
@@ -548,17 +577,23 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="contribution-grid">
-                  {habitData.map((data, index) => (
-                    <div
-                      key={data.date}
-                      className="contribution-cell"
-                      style={{
-                        backgroundColor: getContributionColor(data.completedHabits, data.totalHabits),
-                        animationDelay: `${index * 0.01}s`
-                      }}
-                      title={getTooltip(data)}
-                    />
-                  ))}
+                  {isLoadingProgress ? (
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                      Cargando progreso...
+                    </div>
+                  ) : (
+                    habitData.map((data, index) => (
+                      <div
+                        key={data.date}
+                        className="contribution-cell"
+                        style={{
+                          backgroundColor: getContributionColor(data.completedHabits, data.totalHabits),
+                          animationDelay: `${index * 0.01}s`
+                        }}
+                        title={getTooltip(data)}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             </div>

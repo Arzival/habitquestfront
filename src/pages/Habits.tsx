@@ -14,6 +14,7 @@ import {
 import '../styles/Habits.css';
 import { saveDailyAchievement, getDailyAchievementsByHabitCard } from '../requests/dailyAchievementRequests';
 import type { DailyAchievementRequest } from '../requests/dailyAchievementRequests';
+import { saveActivity, getActivitiesByHabitCard, deleteActivity, toggleActivityCompletion, getActivityCompletionsByHabitCard } from '../requests/activityRequests';
 
 interface MonthData {
   month: string;
@@ -181,29 +182,104 @@ const Habits: React.FC = () => {
     loadDailyAchievements();
   }, [monthData]);
 
-  // Cargar actividades guardadas
+  // Cargar actividades desde la API
   useEffect(() => {
-    if (monthData) {
-      const savedActivities = localStorage.getItem(`activities_${monthData.id}`);
-      if (savedActivities) {
-        setActivities(JSON.parse(savedActivities));
-      } else {
-        // Actividades por defecto
-        const defaultActivities: Activity[] = [
-          { id: '1', name: 'Ejercicio', color: '#FF6B6B' },
-          { id: '2', name: 'Lectura', color: '#4ECDC4' },
-          { id: '3', name: 'Programar', color: '#45B7D1' },
-          { id: '4', name: 'Meditar', color: '#96CEB4' }
-        ];
-        setActivities(defaultActivities);
-        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(defaultActivities));
-      }
+    const loadActivities = async () => {
+      if (!monthData) return;
 
-      const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
-      if (savedDailyActivities) {
-        setDailyActivities(JSON.parse(savedDailyActivities));
+      try {
+        // Convertir el ID a número (puede venir como string con formato "Mes-timestamp")
+        let habitcardIdNumber: number;
+        
+        if (typeof monthData.id === 'number') {
+          habitcardIdNumber = monthData.id;
+        } else if (typeof monthData.id === 'string' && monthData.id.includes('-')) {
+          // Si el ID tiene formato "Mes-timestamp", extraer solo la parte numérica
+          const numericPart = monthData.id.split('-')[1];
+          habitcardIdNumber = parseInt(numericPart);
+        } else {
+          habitcardIdNumber = parseInt(monthData.id);
+        }
+
+        if (isNaN(habitcardIdNumber)) {
+          console.error('ID de habitcard inválido:', monthData.id);
+          // Si el ID no es válido, no cargar actividades
+          setActivities([]);
+          
+          // Cargar desde localStorage para completions si el ID no es válido
+          const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
+          if (savedDailyActivities) {
+            setDailyActivities(JSON.parse(savedDailyActivities));
+          }
+          return;
+        }
+
+        // Llamar a la API para obtener las actividades
+        const response = await getActivitiesByHabitCard(habitcardIdNumber);
+
+        if (response.success && response.data && response.data.length > 0) {
+          // Mapear los datos de la API al formato que usa el componente
+          const mappedActivities: Activity[] = response.data.map(activity => ({
+            id: activity.id.toString(),
+            name: activity.activity,
+            color: activity.color
+          }));
+
+          setActivities(mappedActivities);
+          
+          // Guardar también en localStorage como respaldo
+          localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(mappedActivities));
+        } else {
+          // Si no hay actividades en la API, dejar el array vacío
+          setActivities([]);
+          localStorage.removeItem(`activities_${monthData.id}`);
+        }
+
+        // Cargar completions desde la API después de cargar actividades
+        try {
+          const completionsResponse = await getActivityCompletionsByHabitCard(habitcardIdNumber);
+          
+          if (completionsResponse.success && completionsResponse.data) {
+            // Mapear las completions al formato de dailyActivities
+            const mappedCompletions: DailyActivity[] = completionsResponse.data.map(completion => ({
+              day: completion.day,
+              activityId: completion.activity_tracking_id.toString(),
+              completed: completion.completed
+            }));
+            
+            setDailyActivities(mappedCompletions);
+            
+            // Guardar también en localStorage como respaldo
+            localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(mappedCompletions));
+          } else {
+            // Si no hay completions, cargar desde localStorage como fallback
+            const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
+            if (savedDailyActivities) {
+              setDailyActivities(JSON.parse(savedDailyActivities));
+            }
+          }
+        } catch (completionError) {
+          console.error('Error al cargar completions:', completionError);
+          // Fallback a localStorage en caso de error
+          const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
+          if (savedDailyActivities) {
+            setDailyActivities(JSON.parse(savedDailyActivities));
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar actividades:', error);
+        // En caso de error, dejar el array vacío
+        setActivities([]);
+        
+        // Cargar desde localStorage para completions en caso de error
+        const savedDailyActivities = localStorage.getItem(`dailyActivities_${monthData.id}`);
+        if (savedDailyActivities) {
+          setDailyActivities(JSON.parse(savedDailyActivities));
+        }
       }
-    }
+    };
+
+    loadActivities();
   }, [monthData]);
 
   // Scroll automático al día actual cuando se carga el componente
@@ -409,62 +485,183 @@ const Habits: React.FC = () => {
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD'
   ];
 
-  const addActivity = () => {
-    if (newActivityName.trim() && activities.length < 8) {
-      const colors = generateActivityColors();
-      const newActivity: Activity = {
-        id: Date.now().toString(),
-        name: newActivityName.trim(),
-        color: colors[activities.length]
-      };
+  const addActivity = async () => {
+    if (!newActivityName.trim() || !monthData || activities.length >= 8) return;
+
+    try {
+      // Convertir el ID a número
+      let habitcardIdNumber: number;
       
-      const updatedActivities = [...activities, newActivity];
-      setActivities(updatedActivities);
-      setNewActivityName('');
-      
-      if (monthData) {
-        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
+      if (typeof monthData.id === 'number') {
+        habitcardIdNumber = monthData.id;
+      } else if (typeof monthData.id === 'string' && monthData.id.includes('-')) {
+        const numericPart = monthData.id.split('-')[1];
+        habitcardIdNumber = parseInt(numericPart);
+      } else {
+        habitcardIdNumber = parseInt(monthData.id);
       }
+
+      if (isNaN(habitcardIdNumber)) {
+        setApiMessage({ 
+          type: 'error', 
+          text: 'ID de habitcard inválido' 
+        });
+        setTimeout(() => setApiMessage(null), 5000);
+        return;
+      }
+
+      const colors = generateActivityColors();
+      const newColor = colors[activities.length];
+
+      // Llamar a la API para guardar la actividad
+      const response = await saveActivity({
+        habitcard_id: habitcardIdNumber,
+        activity: newActivityName.trim(),
+        color: newColor
+      });
+
+      if (response.success && response.data) {
+        // Mapear la respuesta de la API al formato del componente
+        const newActivity: Activity = {
+          id: response.data.id.toString(),
+          name: response.data.activity,
+          color: response.data.color
+        };
+        
+        const updatedActivities = [...activities, newActivity];
+        setActivities(updatedActivities);
+        setNewActivityName('');
+        
+        // Guardar también en localStorage como respaldo
+        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
+        
+        // Mostrar mensaje de éxito
+        setApiMessage({ type: 'success', text: response.message });
+        setTimeout(() => setApiMessage(null), 3000);
+      } else {
+        // Manejar error de la API
+        setApiMessage({ type: 'error', text: response.message || 'Error al guardar la actividad' });
+        setTimeout(() => setApiMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error al guardar la actividad:', error);
+      setApiMessage({ 
+        type: 'error', 
+        text: 'Error de conexión. Verifica tu conexión a internet.' 
+      });
+      setTimeout(() => setApiMessage(null), 5000);
     }
   };
 
-  const removeActivity = (activityId: string) => {
-    const updatedActivities = activities.filter(a => a.id !== activityId);
-    setActivities(updatedActivities);
-    
-    // Remover también las actividades diarias relacionadas
-    const updatedDailyActivities = dailyActivities.filter(da => da.activityId !== activityId);
-    setDailyActivities(updatedDailyActivities);
-    
-    if (monthData) {
-      localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
-      localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+  const removeActivity = async (activityId: string) => {
+    if (!monthData) return;
+
+    try {
+      // Convertir el ID a número para la API
+      const activityIdNumber = parseInt(activityId);
+
+      // Eliminar la actividad desde la API
+      const response = await deleteActivity(activityIdNumber);
+
+      if (response.success) {
+        const updatedActivities = activities.filter(a => a.id !== activityId);
+        setActivities(updatedActivities);
+        
+        // Remover también las actividades diarias relacionadas
+        const updatedDailyActivities = dailyActivities.filter(da => da.activityId !== activityId);
+        setDailyActivities(updatedDailyActivities);
+        
+        localStorage.setItem(`activities_${monthData.id}`, JSON.stringify(updatedActivities));
+        localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+        
+        // Mostrar mensaje de éxito
+        setApiMessage({ type: 'success', text: response.message });
+        setTimeout(() => setApiMessage(null), 3000);
+      } else {
+        // Manejar error de la API
+        setApiMessage({ type: 'error', text: response.message || 'Error al eliminar la actividad' });
+        setTimeout(() => setApiMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error al eliminar la actividad:', error);
+      setApiMessage({ 
+        type: 'error', 
+        text: 'Error de conexión. Verifica tu conexión a internet.' 
+      });
+      setTimeout(() => setApiMessage(null), 5000);
     }
   };
 
-  const toggleActivity = (day: number, activityId: string) => {
+  const toggleActivity = async (day: number, activityId: string) => {
+    if (!monthData) return;
+
+    const activityIdNumber = parseInt(activityId);
+    
+    // Encontrar la actividad
+    const activity = activities.find(a => a.id === activityId);
+    if (!activity) return;
+
     const existingIndex = dailyActivities.findIndex(
       da => da.day === day && da.activityId === activityId
     );
     
-    let updatedDailyActivities;
-    if (existingIndex >= 0) {
-      // Toggle existing activity
-      updatedDailyActivities = [...dailyActivities];
-      updatedDailyActivities[existingIndex].completed = !updatedDailyActivities[existingIndex].completed;
-    } else {
-      // Add new activity
-      updatedDailyActivities = [...dailyActivities, {
-        day,
-        activityId,
-        completed: true
-      }];
-    }
-    
-    setDailyActivities(updatedDailyActivities);
-    
-    if (monthData) {
-      localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+    const newCompletedState = existingIndex >= 0 
+      ? !dailyActivities[existingIndex].completed 
+      : true;
+
+    try {
+      // Convertir el ID de habitcard a número
+      let habitcardIdNumber: number;
+      
+      if (typeof monthData.id === 'number') {
+        habitcardIdNumber = monthData.id;
+      } else if (typeof monthData.id === 'string' && monthData.id.includes('-')) {
+        const numericPart = monthData.id.split('-')[1];
+        habitcardIdNumber = parseInt(numericPart);
+      } else {
+        habitcardIdNumber = parseInt(monthData.id);
+      }
+
+      if (isNaN(habitcardIdNumber)) {
+        console.error('ID de habitcard inválido');
+        return;
+      }
+
+      // Llamar a la API para marcar/desmarcar
+      const response = await toggleActivityCompletion({
+        habitcard_id: habitcardIdNumber,
+        activity_tracking_id: activityIdNumber,
+        day: day,
+        completed: newCompletedState
+      });
+
+      if (response.success) {
+        // Actualizar el estado local
+        let updatedDailyActivities;
+        if (existingIndex >= 0) {
+          updatedDailyActivities = [...dailyActivities];
+          updatedDailyActivities[existingIndex].completed = newCompletedState;
+        } else {
+          updatedDailyActivities = [...dailyActivities, {
+            day,
+            activityId,
+            completed: newCompletedState
+          }];
+        }
+        
+        setDailyActivities(updatedDailyActivities);
+        localStorage.setItem(`dailyActivities_${monthData.id}`, JSON.stringify(updatedDailyActivities));
+      } else {
+        setApiMessage({ type: 'error', text: response.message || 'Error al actualizar la actividad' });
+        setTimeout(() => setApiMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error al actualizar la actividad:', error);
+      setApiMessage({ 
+        type: 'error', 
+        text: 'Error de conexión. Verifica tu conexión a internet.' 
+      });
+      setTimeout(() => setApiMessage(null), 5000);
     }
   };
 
@@ -749,67 +946,75 @@ const Habits: React.FC = () => {
                 </div>
               )}
 
-              <div className="activity-table-container" ref={activitiesTableRef}>
-                <div className="activity-table">
-                  <div className="activity-table-header">
-                    <div className="day-header">Día</div>
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="activity-header">
-                        <div 
-                          className="activity-dot" 
-                          style={{ backgroundColor: activity.color }}
-                        />
-                        <span className="activity-header-text">{activity.name}</span>
-                      </div>
-                    ))}
-                    <div className="percentage-header">%</div>
-                  </div>
-
-                  <div className="activity-table-body">
-                    {Array.from({ length: getDaysInMonth(monthData.month, monthData.year) }, (_, index) => {
-                      const day = index + 1;
-                      const currentDay = getCurrentDay();
-                      const isCurrentDay = day === currentDay;
-                      const completionPercentage = getCompletionPercentage(day);
-                      
-                      return (
-                        <div 
-                          key={day} 
-                          className={`activity-row ${isCurrentDay ? 'current-day-row' : ''}`}
-                          data-day={day}
-                        >
-                          <div className="day-cell">
-                            <span className="day-number">{day}</span>
-                          </div>
-                          
-                          {activities.map((activity) => (
-                            <div key={activity.id} className="activity-cell">
-                              <button
-                                className={`activity-checkbox ${isActivityCompleted(day, activity.id) ? 'completed' : ''}`}
-                                style={{ 
-                                  borderColor: activity.color,
-                                  backgroundColor: isActivityCompleted(day, activity.id) ? activity.color : 'transparent'
-                                }}
-                                onClick={() => toggleActivity(day, activity.id)}
-                              >
-                                {isActivityCompleted(day, activity.id) && (
-                                  <Check className="check-icon" />
-                                )}
-                              </button>
-                            </div>
-                          ))}
-                          
-                          <div className="percentage-cell">
-                            <span className={`percentage-text ${completionPercentage === 100 ? 'perfect' : completionPercentage >= 50 ? 'good' : 'low'}`}>
-                              {completionPercentage}%
-                            </span>
-                          </div>
+              {activities.length === 0 ? (
+                <div className="empty-activities-message">
+                  <Settings className="empty-activities-icon" />
+                  <p className="empty-activities-text">No hay actividades registradas</p>
+                  <p className="empty-activities-subtext">Haz clic en "Gestionar" para agregar actividades y comenzar a trackear tu progreso</p>
+                </div>
+              ) : (
+                <div className="activity-table-container" ref={activitiesTableRef}>
+                  <div className="activity-table">
+                    <div className="activity-table-header">
+                      <div className="day-header">Día</div>
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="activity-header">
+                          <div 
+                            className="activity-dot" 
+                            style={{ backgroundColor: activity.color }}
+                          />
+                          <span className="activity-header-text">{activity.name}</span>
                         </div>
-                      );
-                    })}
+                      ))}
+                      <div className="percentage-header">%</div>
+                    </div>
+
+                    <div className="activity-table-body">
+                      {Array.from({ length: getDaysInMonth(monthData.month, monthData.year) }, (_, index) => {
+                        const day = index + 1;
+                        const currentDay = getCurrentDay();
+                        const isCurrentDay = day === currentDay;
+                        const completionPercentage = getCompletionPercentage(day);
+                        
+                        return (
+                          <div 
+                            key={day} 
+                            className={`activity-row ${isCurrentDay ? 'current-day-row' : ''}`}
+                            data-day={day}
+                          >
+                            <div className="day-cell">
+                              <span className="day-number">{day}</span>
+                            </div>
+                            
+                            {activities.map((activity) => (
+                              <div key={activity.id} className="activity-cell">
+                                <button
+                                  className={`activity-checkbox ${isActivityCompleted(day, activity.id) ? 'completed' : ''}`}
+                                  style={{ 
+                                    borderColor: activity.color,
+                                    backgroundColor: isActivityCompleted(day, activity.id) ? activity.color : 'transparent'
+                                  }}
+                                  onClick={() => toggleActivity(day, activity.id)}
+                                >
+                                  {isActivityCompleted(day, activity.id) && (
+                                    <Check className="check-icon" />
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                            
+                            <div className="percentage-cell">
+                              <span className={`percentage-text ${completionPercentage === 100 ? 'perfect' : completionPercentage >= 50 ? 'good' : 'low'}`}>
+                                {completionPercentage}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
 
