@@ -1487,15 +1487,21 @@
   }
   
   .activity-table-container {
-    max-height: 30vh;
+    max-height: 40vh;
+    overflow-x: auto;
+    overflow-y: auto;
   }
   
   .activity-table {
-    min-width: 400px;
+    min-width: 500px;
   }
   
   .activity-header-text {
     font-size: 0.7rem;
+  }
+  
+  .activity-cell {
+    min-width: 50px;
   }
   
   .chart-grid {
@@ -1509,5 +1515,70 @@
   
   .chart-day-label {
     font-size: 0.7rem;
+  }
+  
+  .achievements-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+  
+  .achievement-card {
+    padding: 1rem;
+  }
+  
+  .achievement-day {
+    font-size: 0.875rem;
+  }
+  
+  .achievement-text {
+    font-size: 0.875rem;
+  }
+  
+  .empty-activities-message {
+    padding: 2rem 1rem;
+  }
+  
+  .empty-activities-text {
+    font-size: 1rem;
+  }
+  
+  .empty-activities-subtext {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .activity-table {
+    min-width: 400px;
+  }
+  
+  .activity-header-text {
+    font-size: 0.65rem;
+  }
+  
+  .activity-checkbox {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .achievements-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .chart-grid {
+    height: 120px;
+  }
+  
+  .chart-bar-container {
+    min-width: 12px;
+  }
+  
+  .chart-day-label {
+    font-size: 0.65rem;
+  }
+  
+  .activity-table-container {
+    max-height: 35vh;
   }
 } 
