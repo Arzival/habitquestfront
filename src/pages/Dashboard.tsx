@@ -214,6 +214,17 @@ const Dashboard: React.FC = () => {
         year: now.getFullYear()
       };
 
+      // Validar si ya existe una card para este mes y año
+      const existingCard = monthCards.find(
+        card => card.month === cardData.month && card.year === cardData.year
+      );
+
+      if (existingCard) {
+        setError(`Ya tienes una card creada para ${cardData.month} ${cardData.year}`);
+        setIsLoading(false);
+        return;
+      }
+
       // Llamar a la API para registrar la nueva card
       const response = await registerHabitCard(cardData);
       
